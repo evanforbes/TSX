@@ -15,6 +15,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from typing import Optional
 import sys
+import requests
 
 from config import (
     SCAN_MODE, CUSTOM_SYMBOLS, DEFAULT_TSX_SYMBOLS,
@@ -56,15 +57,16 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
         DataFrame with OHLCV data or None if failed
     """
     # Handle TSX symbol formatting
-    # yfinance uses - for class shares (e.g., RCI-B.TO, TECK-B.TO)
     tsx_symbol = f"{symbol}.TO"
 
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=days)
-
     try:
-        ticker = yf.Ticker(tsx_symbol)
-        df = ticker.history(start=start_date, end=end_date)
+        # Use yf.download() which is more reliable on cloud platforms
+        df = yf.download(
+            tsx_symbol,
+            period=f"{days}d",
+            progress=False,
+            timeout=10
+        )
 
         if df.empty:
             print(f"[DEBUG] Empty data for {tsx_symbol}")
