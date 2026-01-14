@@ -749,34 +749,80 @@ def get_backtest_results_api():
 
 @app.route('/api/test-fetch/<symbol>')
 def test_fetch(symbol):
-    """Debug endpoint to test yfinance"""
+    """Debug endpoint to test all data sources"""
+    from config import ALPHA_VANTAGE_API_KEY
     import yfinance as yf
+    import requests
 
-    result = {'step': 'start', 'symbol': symbol.upper()}
+    symbol = symbol.upper()
+    tsx_symbol = f"{symbol}.TO"
+    results = {'symbol': symbol, 'methods': {}}
 
+    # Test Method 1: yf.download
     try:
-        result['step'] = 'creating ticker'
-        tsx_symbol = f"{symbol.upper()}.TO"
-        ticker = yf.Ticker(tsx_symbol)
-
-        result['step'] = 'fetching history'
-        df = ticker.history(period="5d")
-
-        result['step'] = 'processing'
-        if df is None or df.empty:
-            result['status'] = 'empty'
-            result['message'] = 'No data returned'
+        df = yf.download(tsx_symbol, period="5d", progress=False, timeout=10)
+        if df is not None and not df.empty:
+            results['methods']['yf_download'] = {'status': 'success', 'rows': len(df)}
         else:
-            result['status'] = 'success'
-            result['rows'] = len(df)
-            result['price'] = round(float(df['Close'].iloc[-1]), 2)
-
+            results['methods']['yf_download'] = {'status': 'empty'}
     except Exception as e:
-        result['status'] = 'error'
-        result['error'] = str(e)
-        result['error_type'] = type(e).__name__
+        results['methods']['yf_download'] = {'status': 'error', 'error': str(e)}
 
-    return jsonify(result)
+    # Test Method 2: Ticker.history
+    try:
+        ticker = yf.Ticker(tsx_symbol)
+        df = ticker.history(period="5d")
+        if df is not None and not df.empty:
+            results['methods']['ticker_history'] = {'status': 'success', 'rows': len(df)}
+        else:
+            results['methods']['ticker_history'] = {'status': 'empty'}
+    except Exception as e:
+        results['methods']['ticker_history'] = {'status': 'error', 'error': str(e)}
+
+    # Test Method 3: Direct Yahoo API
+    try:
+        from datetime import datetime, timedelta
+        end_ts = int(datetime.now().timestamp())
+        start_ts = int((datetime.now() - timedelta(days=5)).timestamp())
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{tsx_symbol}?period1={start_ts}&period2={end_ts}&interval=1d"
+        response = requests.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('chart', {}).get('result'):
+                results['methods']['yahoo_direct'] = {'status': 'success'}
+            else:
+                results['methods']['yahoo_direct'] = {'status': 'empty', 'response': data}
+        else:
+            results['methods']['yahoo_direct'] = {'status': 'http_error', 'code': response.status_code}
+    except Exception as e:
+        results['methods']['yahoo_direct'] = {'status': 'error', 'error': str(e)}
+
+    # Test Method 4: Alpha Vantage
+    results['alpha_vantage_key_set'] = bool(ALPHA_VANTAGE_API_KEY)
+    if ALPHA_VANTAGE_API_KEY:
+        try:
+            av_symbol = f"{symbol}.TRT"
+            url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={av_symbol}&outputsize=compact&apikey={ALPHA_VANTAGE_API_KEY}"
+            response = requests.get(url, timeout=15)
+            data = response.json()
+            if 'Time Series (Daily)' in data:
+                results['methods']['alpha_vantage'] = {'status': 'success', 'days': len(data['Time Series (Daily)'])}
+            else:
+                results['methods']['alpha_vantage'] = {'status': 'empty', 'response': data}
+        except Exception as e:
+            results['methods']['alpha_vantage'] = {'status': 'error', 'error': str(e)}
+
+    # Test actual fetch_stock_data function
+    try:
+        df = fetch_stock_data(symbol)
+        if df is not None and not df.empty:
+            results['fetch_stock_data'] = {'status': 'success', 'rows': len(df), 'price': round(float(df['Close'].iloc[-1]), 2)}
+        else:
+            results['fetch_stock_data'] = {'status': 'failed'}
+    except Exception as e:
+        results['fetch_stock_data'] = {'status': 'error', 'error': str(e)}
+
+    return jsonify(results)
 
 
 if __name__ == '__main__':
