@@ -17,6 +17,14 @@ from typing import Optional
 import sys
 import requests
 
+# Configure yfinance to use custom session with browser headers
+session = requests.Session()
+session.headers.update({
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+})
+
 from config import (
     SCAN_MODE, CUSTOM_SYMBOLS, DEFAULT_TSX_SYMBOLS,
     MIN_PRICE, MIN_VOLUME, LOOKBACK_DAYS,
@@ -60,12 +68,13 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
     tsx_symbol = f"{symbol}.TO"
 
     try:
-        # Use yf.download() which is more reliable on cloud platforms
+        # Use yf.download() with custom session for cloud compatibility
         df = yf.download(
             tsx_symbol,
             period=f"{days}d",
             progress=False,
-            timeout=10
+            timeout=15,
+            session=session
         )
 
         if df.empty:
@@ -97,7 +106,7 @@ def fetch_stock_info(symbol: str) -> dict:
     }
 
     try:
-        ticker = yf.Ticker(tsx_symbol)
+        ticker = yf.Ticker(tsx_symbol, session=session)
         ticker_info = ticker.info
 
         # 52-week high/low
