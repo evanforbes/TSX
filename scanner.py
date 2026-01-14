@@ -67,8 +67,11 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
     # Handle TSX symbol formatting
     tsx_symbol = f"{symbol}.TO"
 
+    # Try multiple methods
+    df = None
+
+    # Method 1: yf.download with session
     try:
-        # Use yf.download() with custom session for cloud compatibility
         df = yf.download(
             tsx_symbol,
             period=f"{days}d",
@@ -76,15 +79,52 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
             timeout=15,
             session=session
         )
-
-        if df.empty:
-            print(f"[DEBUG] Empty data for {tsx_symbol}")
-            return None
-
-        return df
+        if df is not None and not df.empty:
+            return df
     except Exception as e:
-        print(f"[DEBUG] Error fetching {tsx_symbol}: {e}")
-        return None
+        print(f"[DEBUG] Method 1 failed for {tsx_symbol}: {e}")
+
+    # Method 2: Ticker.history with session
+    try:
+        ticker = yf.Ticker(tsx_symbol, session=session)
+        df = ticker.history(period=f"{days}d")
+        if df is not None and not df.empty:
+            return df
+    except Exception as e:
+        print(f"[DEBUG] Method 2 failed for {tsx_symbol}: {e}")
+
+    # Method 3: Direct API call to Yahoo Finance
+    try:
+        end_ts = int(datetime.now().timestamp())
+        start_ts = int((datetime.now() - timedelta(days=days)).timestamp())
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{tsx_symbol}?period1={start_ts}&period2={end_ts}&interval=1d"
+
+        response = session.get(url, timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            result = data.get('chart', {}).get('result', [])
+            if result:
+                quotes = result[0]
+                timestamps = quotes.get('timestamp', [])
+                ohlcv = quotes.get('indicators', {}).get('quote', [{}])[0]
+                adj_close = quotes.get('indicators', {}).get('adjclose', [{}])[0].get('adjclose', ohlcv.get('close', []))
+
+                df = pd.DataFrame({
+                    'Open': ohlcv.get('open', []),
+                    'High': ohlcv.get('high', []),
+                    'Low': ohlcv.get('low', []),
+                    'Close': ohlcv.get('close', []),
+                    'Adj Close': adj_close,
+                    'Volume': ohlcv.get('volume', [])
+                }, index=pd.to_datetime(timestamps, unit='s'))
+
+                if not df.empty:
+                    return df
+    except Exception as e:
+        print(f"[DEBUG] Method 3 failed for {tsx_symbol}: {e}")
+
+    print(f"[DEBUG] All methods failed for {tsx_symbol}")
+    return None
 
 
 def fetch_stock_info(symbol: str) -> dict:
