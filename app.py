@@ -751,38 +751,32 @@ def get_backtest_results_api():
 def test_fetch(symbol):
     """Debug endpoint to test yfinance"""
     import yfinance as yf
-    from datetime import datetime, timedelta
 
-    symbol = symbol.upper().strip()
-    tsx_symbol = f"{symbol}.TO"
+    result = {'step': 'start', 'symbol': symbol.upper()}
 
     try:
+        result['step'] = 'creating ticker'
+        tsx_symbol = f"{symbol.upper()}.TO"
         ticker = yf.Ticker(tsx_symbol)
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=30)
-        df = ticker.history(start=start_date, end=end_date)
 
-        if df.empty:
-            return jsonify({
-                'status': 'empty',
-                'symbol': tsx_symbol,
-                'message': 'yfinance returned empty data'
-            })
+        result['step'] = 'fetching history'
+        df = ticker.history(period="5d")
 
-        return jsonify({
-            'status': 'success',
-            'symbol': tsx_symbol,
-            'rows': len(df),
-            'latest_price': float(df['Close'].iloc[-1]),
-            'columns': list(df.columns)
-        })
+        result['step'] = 'processing'
+        if df is None or df.empty:
+            result['status'] = 'empty'
+            result['message'] = 'No data returned'
+        else:
+            result['status'] = 'success'
+            result['rows'] = len(df)
+            result['price'] = round(float(df['Close'].iloc[-1]), 2)
+
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'symbol': tsx_symbol,
-            'error': str(e),
-            'error_type': type(e).__name__
-        })
+        result['status'] = 'error'
+        result['error'] = str(e)
+        result['error_type'] = type(e).__name__
+
+    return jsonify(result)
 
 
 if __name__ == '__main__':
