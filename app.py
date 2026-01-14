@@ -747,6 +747,44 @@ def get_backtest_results_api():
     return jsonify(results)
 
 
+@app.route('/api/test-fetch/<symbol>')
+def test_fetch(symbol):
+    """Debug endpoint to test yfinance"""
+    import yfinance as yf
+    from datetime import datetime, timedelta
+
+    symbol = symbol.upper().strip()
+    tsx_symbol = f"{symbol}.TO"
+
+    try:
+        ticker = yf.Ticker(tsx_symbol)
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=30)
+        df = ticker.history(start=start_date, end=end_date)
+
+        if df.empty:
+            return jsonify({
+                'status': 'empty',
+                'symbol': tsx_symbol,
+                'message': 'yfinance returned empty data'
+            })
+
+        return jsonify({
+            'status': 'success',
+            'symbol': tsx_symbol,
+            'rows': len(df),
+            'latest_price': float(df['Close'].iloc[-1]),
+            'columns': list(df.columns)
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'symbol': tsx_symbol,
+            'error': str(e),
+            'error_type': type(e).__name__
+        })
+
+
 if __name__ == '__main__':
     # Run on all interfaces so it's accessible from phone
     # Using 8080 because 5000 is often used by AirPlay on macOS
