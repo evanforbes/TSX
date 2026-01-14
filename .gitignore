@@ -13,6 +13,7 @@ data/
 *.json
 !railway.json
 !static/manifest.json
+!tsx_symbols_cache.json
 
 # Local tools
 ngrok
