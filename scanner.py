@@ -67,11 +67,12 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
         df = ticker.history(start=start_date, end=end_date)
 
         if df.empty:
+            print(f"[DEBUG] Empty data for {tsx_symbol}")
             return None
 
         return df
-    except Exception:
-        # Silently fail for individual stocks in full scan
+    except Exception as e:
+        print(f"[DEBUG] Error fetching {tsx_symbol}: {e}")
         return None
 
 

@@ -319,9 +319,12 @@ def get_results():
 @app.route('/stock/<symbol>')
 def stock_detail(symbol):
     """Detailed view for a single stock"""
-    df = fetch_stock_data(symbol.upper())
+    symbol = symbol.upper().strip()
+    print(f"[DEBUG] Fetching stock: {symbol}")
+    df = fetch_stock_data(symbol)
     if df is None:
-        return render_template('error.html', message=f"Could not fetch data for {symbol}")
+        print(f"[DEBUG] Failed to fetch data for {symbol}")
+        return render_template('error.html', message=f"Could not fetch data for {symbol}. The stock may be delisted or Yahoo Finance may be temporarily unavailable.")
 
     result = analyze_stock(symbol.upper(), df)
     tier = classify_signal_tier(result)
