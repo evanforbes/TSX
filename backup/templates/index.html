@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+    <!-- iOS PWA Settings -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ChartAlert">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    <meta name="format-detection" content="telephone=no">
+
+    <title>ChartAlert</title>
+
+    <!-- App Icons -->
+    <link rel="apple-touch-icon" href="/static/icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icon.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/static/icon-192.png">
+    <link rel="manifest" href="/static/manifest.json">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            -webkit-text-size-adjust: 100%;
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: calc(80px + env(safe-area-inset-bottom));
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+            touch-action: pan-y;
+        }
+
+        /* Prevent pull-to-refresh on iOS */
+        body.prevent-overscroll {
+            position: fixed;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .header {
+            background: #000;
+            padding: 20px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid #222;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .header .subtitle {
+            font-size: 13px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 20px;
+            gap: 12px;
+        }
+
+        .scan-btn {
+            background: #fff;
+            color: #000;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.1s;
+            touch-action: manipulation;
+            -webkit-appearance: none;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .scan-btn:active {
+            transform: scale(0.97);
+            opacity: 0.9;
+        }
+
+        .scan-btn:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            max-width: 280px;
+            position: relative;
+        }
+
+        .search-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #1c1c1e;
+            border-radius: 0 0 12px 12px;
+            overflow: hidden;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+
+        .search-dropdown.active {
+            display: block;
+        }
+
+        .search-result {
+            padding: 14px 16px;
+            border-bottom: 1px solid #333;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            touch-action: manipulation;
+        }
+
+        .search-result:last-child {
+            border-bottom: none;
+        }
+
+        .search-result:active {
+            background: #2c2c2e;
+        }
+
+        .search-result .symbol {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .search-result .suffix {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .search-input {
+            flex: 1;
+            background: #1c1c1e;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 16px; /* 16px prevents iOS zoom */
+            color: #fff;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .search-input:focus {
+            background: #2c2c2e;
+        }
+
+        .search-input::placeholder {
+            color: #666;
+        }
+
+        .search-btn {
+            background: #0A84FF;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            touch-action: manipulation;
+            -webkit-appearance: none;
+        }
+
+        .search-btn:active {
+            opacity: 0.8;
+            transform: scale(0.98);
+        }
+
+        .progress-bar {
+            background: #222;
+            border-radius: 4px;
+            height: 4px;
+            margin: 15px 20px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar.active {
+            display: block;
+        }
+
+        .progress-fill {
+            background: #00C805;
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .market-chart-container {
+            background: #111;
+            margin: 15px;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .market-chart-header {
+            padding: 16px 20px 0;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #8E8E93;
+            font-weight: 600;
+        }
+
+        .market-chart-widget {
+            height: 200px;
+            width: 100%;
+        }
+
+        .summary-bar {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px 15px;
+            background: #111;
+            margin: 15px;
+            border-radius: 16px;
+        }
+
+        .summary-item {
+            text-align: center;
+            cursor: pointer;
+            padding: 10px 15px;
+            border-radius: 12px;
+            transition: background 0.1s, transform 0.1s;
+            touch-action: manipulation;
+        }
+
+        .summary-item:active {
+            background: rgba(255,255,255,0.1);
+            transform: scale(0.95);
+        }
+
+        .summary-item .number {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .summary-item .label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            margin-top: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .summary-item.gold .number { color: #FFD60A; }
+        .summary-item.silver .number { color: #98989D; }
+        .summary-item.buy .number { color: #00C805; }
+        .summary-item.sell .number { color: #FF3B30; }
+
+        .section {
+            margin: 15px;
+            background: #111;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 16px 20px;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #222;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        .section-header:active {
+            opacity: 0.8;
+        }
+
+        .section-header::after {
+            content: '▼';
+            margin-left: auto;
+            font-size: 10px;
+            transition: transform 0.2s;
+        }
+
+        .section.collapsed .section-header::after {
+            transform: rotate(-90deg);
+        }
+
+        .section-content {
+            max-height: 5000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .section.collapsed .section-content {
+            max-height: 0;
+        }
+
+        .section-header .badge {
+            background: rgba(255,255,255,0.15);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .gold .section-header {
+            background: linear-gradient(135deg, #FFD60A 0%, #FFCC00 100%);
+            color: #000;
+            border-bottom: none;
+        }
+
+        .gold .section-header::after {
+            color: #000;
+        }
+
+        .gold .section-header .badge {
+            background: rgba(0,0,0,0.2);
+        }
+
+        .silver .section-header {
+            background: linear-gradient(135deg, #98989D 0%, #8E8E93 100%);
+            color: #000;
+            border-bottom: none;
+        }
+
+        .silver .section-header::after {
+            color: #000;
+        }
+
+        .silver .section-header .badge {
+            background: rgba(0,0,0,0.2);
+        }
+
+        .buy .section-header {
+            color: #00C805;
+        }
+
+        .sell .section-header {
+            color: #FF3B30;
+        }
+
+        .stock-card {
+            padding: 16px 20px;
+            border-bottom: 1px solid #1c1c1c;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.1s;
+            touch-action: manipulation;
+            -webkit-user-drag: none;
+        }
+
+        .stock-card:active {
+            background: #1a1a1a;
+        }
+
+        @media (hover: hover) {
+            .stock-card:hover {
+                background: #1a1a1a;
+            }
+        }
+
+        .stock-card:last-child {
+            border-bottom: none;
+        }
+
+        .stock-info {
+            flex: 1;
+        }
+
+        .stock-symbol {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .stock-signals {
+            font-size: 13px;
+            color: #8E8E93;
+        }
+
+        .stock-price {
+            text-align: right;
+        }
+
+        .stock-price .price {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .stock-price .signal-count {
+            font-size: 12px;
+            color: #8E8E93;
+            margin-top: 2px;
+        }
+
+        .signal-tag {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            margin-right: 6px;
+            margin-top: 6px;
+        }
+
+        /* Buy signals - green variations */
+        .signal-tag.rsi { background: #00C805; color: #000; }
+        .signal-tag.macd { background: #34C759; color: #000; }
+        .signal-tag.slowsto { background: #30D158; color: #000; }
+        .signal-tag.pf { background: #32D74B; color: #000; }
+
+        /* Sell signals - red variations */
+        .sell-section .signal-tag.rsi,
+        .sell .signal-tag.rsi { background: #FF3B30; color: #000; }
+        .sell-section .signal-tag.macd,
+        .sell .signal-tag.macd { background: #FF6B6B; color: #000; }
+        .sell-section .signal-tag.slowsto,
+        .sell .signal-tag.slowsto { background: #FF453A; color: #000; }
+        .sell-section .signal-tag.pf,
+        .sell .signal-tag.pf { background: #FF5E5B; color: #000; }
+
+        .news-section {
+            padding: 12px 20px;
+            border-top: 1px solid #222;
+            background: #0a0a0a;
+        }
+
+        .news-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        .news-item {
+            display: block;
+            padding: 10px 0;
+            border-bottom: 1px solid #1c1c1c;
+        }
+
+        .news-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .news-title {
+            font-size: 14px;
+            color: #fff;
+            line-height: 1.4;
+            margin-bottom: 4px;
+        }
+
+        .news-meta {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .news-meta .publisher {
+            color: #0A84FF;
+        }
+
+        .analyst-section {
+            display: block;
+            padding: 14px 20px;
+            background: #0d0d0d;
+            border-top: 1px solid #222;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .analyst-section:active {
+            background: #1a1a1a;
+        }
+
+        .analyst-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .analyst-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .analyst-rating {
+            font-size: 14px;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 6px;
+        }
+
+        .analyst-rating.strong-buy { background: #00C805; color: #000; }
+        .analyst-rating.buy { background: #34C759; color: #000; }
+        .analyst-rating.hold { background: #FF9F0A; color: #000; }
+        .analyst-rating.sell { background: #FF6B6B; color: #000; }
+        .analyst-rating.strong-sell { background: #FF3B30; color: #fff; }
+
+        .analyst-bars {
+            display: flex;
+            gap: 4px;
+            height: 24px;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .analyst-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: #000;
+            min-width: 20px;
+        }
+
+        .analyst-bar.sb { background: #00C805; }
+        .analyst-bar.b { background: #34C759; }
+        .analyst-bar.h { background: #FF9F0A; }
+        .analyst-bar.s { background: #FF6B6B; }
+        .analyst-bar.ss { background: #FF3B30; color: #fff; }
+
+        .analyst-legend {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 10px;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state .icon {
+            font-size: 56px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state .title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .last-scan {
+            text-align: center;
+            font-size: 12px;
+            color: #48484A;
+            padding: 15px;
+        }
+
+        /* Fear & Greed Index Gauge */
+        .fear-greed-section {
+            background: #111;
+            margin: 15px;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .fg-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #8E8E93;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .fg-gauge-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .fg-gauge {
+            position: relative;
+            width: 200px;
+            height: 100px;
+            overflow: hidden;
+        }
+
+        .fg-gauge-bg {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            border-radius: 100px 100px 0 0;
+            background: conic-gradient(
+                from 180deg,
+                #FF3B30 0deg,
+                #FF6B6B 36deg,
+                #FF9F0A 72deg,
+                #FFD60A 90deg,
+                #34C759 108deg,
+                #00C805 144deg,
+                #00C805 180deg
+            );
+            clip-path: polygon(0 50%, 100% 50%, 100% 0, 0 0);
+        }
+
+        .fg-gauge-bg::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 160px;
+            height: 160px;
+            background: #111;
+            border-radius: 80px 80px 0 0;
+            clip-path: polygon(0 50%, 100% 50%, 100% 0, 0 0);
+        }
+
+        .fg-needle {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 4px;
+            height: 70px;
+            background: #fff;
+            transform-origin: bottom center;
+            margin-left: -2px;
+            border-radius: 2px;
+            z-index: 10;
+            transition: transform 0.5s ease-out;
+        }
+
+        .fg-needle::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: -6px;
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+        }
+
+        .fg-score-display {
+            text-align: center;
+            margin-top: 16px;
+        }
+
+        .fg-score {
+            font-size: 48px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .fg-rating {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 8px;
+            padding: 6px 16px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+
+        .fg-rating.extreme-fear { background: #FF3B30; color: #fff; }
+        .fg-rating.fear { background: #FF6B6B; color: #000; }
+        .fg-rating.neutral { background: #FFD60A; color: #000; }
+        .fg-rating.greed { background: #34C759; color: #000; }
+        .fg-rating.extreme-greed { background: #00C805; color: #000; }
+
+        .fg-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 200px;
+            margin-top: 8px;
+            font-size: 10px;
+            color: #666;
+        }
+
+        .fg-history {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #222;
+        }
+
+        .fg-history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #1c1c1e;
+            border-radius: 8px;
+        }
+
+        .fg-history-label {
+            font-size: 12px;
+            color: #8E8E93;
+        }
+
+        .fg-history-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .fg-source {
+            font-size: 10px;
+            color: #48484A;
+            margin-top: 16px;
+        }
+
+        .show-more {
+            padding: 14px 20px;
+            text-align: center;
+            color: #0A84FF;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            border-top: 1px solid #1c1c1c;
+            touch-action: manipulation;
+            transition: background 0.1s;
+        }
+
+        .show-more:active {
+            background: #1a1a1a;
+        }
+
+        .more-stocks {
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .more-stocks.collapsed {
+            max-height: 0;
+        }
+
+        .install-banner {
+            display: none;
+            background: #1c1c1e;
+            padding: 14px 20px;
+            text-align: center;
+            font-size: 14px;
+            border-bottom: 1px solid #333;
+        }
+
+        .install-banner button {
+            background: #fff;
+            color: #000;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            margin-left: 12px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        /* Tier labels */
+        .tier-label {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+            font-weight: 500;
+        }
+
+        .tier-label.gold-tier {
+            background: #FFD60A;
+            color: #000;
+        }
+
+        .tier-label.silver-tier {
+            background: #98989D;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="install-banner" id="installBanner">
+        Add to Home Screen for quick access
+        <button onclick="installPWA()">Install</button>
+    </div>
+
+    <div class="header">
+        <h1>ChartAlert</h1>
+        <div class="subtitle">TSX Technical Signals</div>
+    </div>
+
+    <div class="top-bar">
+        <button class="scan-btn" id="scanBtn" onclick="startScan()">
+            Run Scan
+        </button>
+        <div class="search-container">
+            <div class="search-wrapper">
+                <input type="text" class="search-input" id="searchInput" placeholder="Search (RY, TD...)" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false">
+                <div class="search-dropdown" id="searchDropdown"></div>
+            </div>
+            <button class="search-btn" onclick="searchStock()">Go</button>
+        </div>
+    </div>
+
+    <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+    </div>
+    <div class="progress-text" id="progressText"></div>
+
+    {% if last_scan %}
+    <div class="summary-bar">
+        <a href="#gold-buys" class="summary-item gold">
+            <div class="number">{{ categorized.gold_buys|length + categorized.gold_sells|length }}</div>
+            <div class="label">Gold</div>
+        </a>
+        <a href="#silver-buys" class="summary-item silver">
+            <div class="number">{{ categorized.silver_buys|length + categorized.silver_sells|length }}</div>
+            <div class="label">Silver</div>
+        </a>
+        <a href="#regular-buys" class="summary-item buy">
+            <div class="number">{{ categorized.regular_buys|length }}</div>
+            <div class="label">Buys</div>
+        </a>
+        <a href="#regular-sells" class="summary-item sell">
+            <div class="number">{{ categorized.regular_sells|length }}</div>
+            <div class="label">Sells</div>
+        </a>
+    </div>
+    {% endif %}
+
+    {% if categorized.gold_buys %}
+    <div class="section gold collapsed" id="gold-buys">
+        <div class="section-header" onclick="toggleSection(this)">
+            Gold Standard Buy
+            <span class="badge">{{ categorized.gold_buys|length }}</span>
+        </div>
+        <div class="section-content">
+        {% for stock in categorized.gold_buys %}
+        <div>
+            <a href="/stock/{{ stock.symbol }}" class="stock-card">
+                <div class="stock-info">
+                    <div class="stock-symbol">{{ stock.symbol }}.TO</div>
+                    <div class="stock-signals">
+                        {% for indicator, desc in stock.tier.buy_indicators %}
+                        <span class="signal-tag {{ indicator|lower|replace('&', '')|replace(' ', '') }}">{{ indicator }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="stock-price">
+                    <div class="price">${{ "%.2f"|format(stock.price) }}</div>
+                    <div class="signal-count">{{ stock.tier.buy_count }} signals</div>
+                </div>
+            </a>
+            {% if stock.analyst %}
+            <a href="https://finance.yahoo.com/quote/{{ stock.symbol }}.TO/analysis" target="_blank" class="analyst-section">
+                <div class="analyst-header">
+                    <span class="analyst-label">Analyst Consensus ({{ stock.analyst.total }} analysts)</span>
+                    <span class="analyst-rating {{ stock.analyst.rating|lower|replace(' ', '-') }}">{{ stock.analyst.rating }}</span>
+                </div>
+                <div class="analyst-bars">
+                    {% if stock.analyst.strong_buy %}<div class="analyst-bar sb" style="flex: {{ stock.analyst.strong_buy }}">{{ stock.analyst.strong_buy }}</div>{% endif %}
+                    {% if stock.analyst.buy %}<div class="analyst-bar b" style="flex: {{ stock.analyst.buy }}">{{ stock.analyst.buy }}</div>{% endif %}
+                    {% if stock.analyst.hold %}<div class="analyst-bar h" style="flex: {{ stock.analyst.hold }}">{{ stock.analyst.hold }}</div>{% endif %}
+                    {% if stock.analyst.sell %}<div class="analyst-bar s" style="flex: {{ stock.analyst.sell }}">{{ stock.analyst.sell }}</div>{% endif %}
+                    {% if stock.analyst.strong_sell %}<div class="analyst-bar ss" style="flex: {{ stock.analyst.strong_sell }}">{{ stock.analyst.strong_sell }}</div>{% endif %}
+                </div>
+                <div class="analyst-legend">
+                    <span>Strong Buy</span>
+                    <span>Buy</span>
+                    <span>Hold</span>
+                    <span>Sell</span>
+                    <span>Strong Sell</span>
+                </div>
+            </a>
+            {% endif %}
+            {% if stock.news %}
+            <div class="news-section">
+                <div class="news-label">Latest News</div>
+                {% for article in stock.news %}
+                <a href="{{ article.link }}" target="_blank" class="news-item">
+                    <div class="news-title">{{ article.title }}</div>
+                    <div class="news-meta"><span class="publisher">{{ article.publisher }}</span> • {{ article.published }}</div>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if categorized.gold_sells %}
+    <div class="section gold sell-section collapsed" id="gold-sells">
+        <div class="section-header" onclick="toggleSection(this)">
+            Gold Standard Sell
+            <span class="badge">{{ categorized.gold_sells|length }}</span>
+        </div>
+        <div class="section-content">
+        {% for stock in categorized.gold_sells %}
+        <div>
+            <a href="/stock/{{ stock.symbol }}" class="stock-card">
+                <div class="stock-info">
+                    <div class="stock-symbol">{{ stock.symbol }}.TO</div>
+                    <div class="stock-signals">
+                        {% for indicator, desc in stock.tier.sell_indicators %}
+                        <span class="signal-tag {{ indicator|lower|replace('&', '')|replace(' ', '') }}">{{ indicator }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="stock-price">
+                    <div class="price">${{ "%.2f"|format(stock.price) }}</div>
+                    <div class="signal-count">{{ stock.tier.sell_count }} signals</div>
+                </div>
+            </a>
+            {% if stock.analyst %}
+            <a href="https://finance.yahoo.com/quote/{{ stock.symbol }}.TO/analysis" target="_blank" class="analyst-section">
+                <div class="analyst-header">
+                    <span class="analyst-label">Analyst Consensus ({{ stock.analyst.total }} analysts)</span>
+                    <span class="analyst-rating {{ stock.analyst.rating|lower|replace(' ', '-') }}">{{ stock.analyst.rating }}</span>
+                </div>
+                <div class="analyst-bars">
+                    {% if stock.analyst.strong_buy %}<div class="analyst-bar sb" style="flex: {{ stock.analyst.strong_buy }}">{{ stock.analyst.strong_buy }}</div>{% endif %}
+                    {% if stock.analyst.buy %}<div class="analyst-bar b" style="flex: {{ stock.analyst.buy }}">{{ stock.analyst.buy }}</div>{% endif %}
+                    {% if stock.analyst.hold %}<div class="analyst-bar h" style="flex: {{ stock.analyst.hold }}">{{ stock.analyst.hold }}</div>{% endif %}
+                    {% if stock.analyst.sell %}<div class="analyst-bar s" style="flex: {{ stock.analyst.sell }}">{{ stock.analyst.sell }}</div>{% endif %}
+                    {% if stock.analyst.strong_sell %}<div class="analyst-bar ss" style="flex: {{ stock.analyst.strong_sell }}">{{ stock.analyst.strong_sell }}</div>{% endif %}
+                </div>
+                <div class="analyst-legend">
+                    <span>Strong Buy</span>
+                    <span>Buy</span>
+                    <span>Hold</span>
+                    <span>Sell</span>
+                    <span>Strong Sell</span>
+                </div>
+            </a>
+            {% endif %}
+            {% if stock.news %}
+            <div class="news-section">
+                <div class="news-label">Latest News</div>
+                {% for article in stock.news %}
+                <a href="{{ article.link }}" target="_blank" class="news-item">
+                    <div class="news-title">{{ article.title }}</div>
+                    <div class="news-meta"><span class="publisher">{{ article.publisher }}</span> • {{ article.published }}</div>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if categorized.silver_buys %}
+    <div class="section silver collapsed" id="silver-buys">
+        <div class="section-header" onclick="toggleSection(this)">
+            Silver Standard Buy
+            <span class="badge">{{ categorized.silver_buys|length }}</span>
+        </div>
+        <div class="section-content">
+        {% for stock in categorized.silver_buys %}
+        <div>
+            <a href="/stock/{{ stock.symbol }}" class="stock-card">
+                <div class="stock-info">
+                    <div class="stock-symbol">{{ stock.symbol }}.TO</div>
+                    <div class="stock-signals">
+                        {% for indicator, desc in stock.tier.buy_indicators %}
+                        <span class="signal-tag {{ indicator|lower|replace('&', '')|replace(' ', '') }}">{{ indicator }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="stock-price">
+                    <div class="price">${{ "%.2f"|format(stock.price) }}</div>
+                    <div class="signal-count">{{ stock.tier.buy_count }} signals</div>
+                </div>
+            </a>
+            {% if stock.analyst %}
+            <a href="https://finance.yahoo.com/quote/{{ stock.symbol }}.TO/analysis" target="_blank" class="analyst-section">
+                <div class="analyst-header">
+                    <span class="analyst-label">Analyst Consensus ({{ stock.analyst.total }} analysts)</span>
+                    <span class="analyst-rating {{ stock.analyst.rating|lower|replace(' ', '-') }}">{{ stock.analyst.rating }}</span>
+                </div>
+                <div class="analyst-bars">
+                    {% if stock.analyst.strong_buy %}<div class="analyst-bar sb" style="flex: {{ stock.analyst.strong_buy }}">{{ stock.analyst.strong_buy }}</div>{% endif %}
+                    {% if stock.analyst.buy %}<div class="analyst-bar b" style="flex: {{ stock.analyst.buy }}">{{ stock.analyst.buy }}</div>{% endif %}
+                    {% if stock.analyst.hold %}<div class="analyst-bar h" style="flex: {{ stock.analyst.hold }}">{{ stock.analyst.hold }}</div>{% endif %}
+                    {% if stock.analyst.sell %}<div class="analyst-bar s" style="flex: {{ stock.analyst.sell }}">{{ stock.analyst.sell }}</div>{% endif %}
+                    {% if stock.analyst.strong_sell %}<div class="analyst-bar ss" style="flex: {{ stock.analyst.strong_sell }}">{{ stock.analyst.strong_sell }}</div>{% endif %}
+                </div>
+                <div class="analyst-legend">
+                    <span>Strong Buy</span>
+                    <span>Buy</span>
+                    <span>Hold</span>
+                    <span>Sell</span>
+                    <span>Strong Sell</span>
+                </div>
+            </a>
+            {% endif %}
+            {% if stock.news %}
+            <div class="news-section">
+                <div class="news-label">Latest News</div>
+                {% for article in stock.news %}
+                <a href="{{ article.link }}" target="_blank" class="news-item">
+                    <div class="news-title">{{ article.title }}</div>
+                    <div class="news-meta"><span class="publisher">{{ article.publisher }}</span> • {{ article.published }}</div>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if categorized.silver_sells %}
+    <div class="section silver sell-section collapsed" id="silver-sells">
+        <div class="section-header" onclick="toggleSection(this)">
+            Silver Standard Sell
+            <span class="badge">{{ categorized.silver_sells|length }}</span>
+        </div>
+        <div class="section-content">
+        {% for stock in categorized.silver_sells %}
+        <div>
+            <a href="/stock/{{ stock.symbol }}" class="stock-card">
+                <div class="stock-info">
+                    <div class="stock-symbol">{{ stock.symbol }}.TO</div>
+                    <div class="stock-signals">
+                        {% for indicator, desc in stock.tier.sell_indicators %}
+                        <span class="signal-tag {{ indicator|lower|replace('&', '')|replace(' ', '') }}">{{ indicator }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="stock-price">
+                    <div class="price">${{ "%.2f"|format(stock.price) }}</div>
+                    <div class="signal-count">{{ stock.tier.sell_count }} signals</div>
+                </div>
+            </a>
+            {% if stock.analyst %}
+            <a href="https://finance.yahoo.com/quote/{{ stock.symbol }}.TO/analysis" target="_blank" class="analyst-section">
+                <div class="analyst-header">
+                    <span class="analyst-label">Analyst Consensus ({{ stock.analyst.total }} analysts)</span>
+                    <span class="analyst-rating {{ stock.analyst.rating|lower|replace(' ', '-') }}">{{ stock.analyst.rating }}</span>
+                </div>
+                <div class="analyst-bars">
+                    {% if stock.analyst.strong_buy %}<div class="analyst-bar sb" style="flex: {{ stock.analyst.strong_buy }}">{{ stock.analyst.strong_buy }}</div>{% endif %}
+                    {% if stock.analyst.buy %}<div class="analyst-bar b" style="flex: {{ stock.analyst.buy }}">{{ stock.analyst.buy }}</div>{% endif %}
+                    {% if stock.analyst.hold %}<div class="analyst-bar h" style="flex: {{ stock.analyst.hold }}">{{ stock.analyst.hold }}</div>{% endif %}
+                    {% if stock.analyst.sell %}<div class="analyst-bar s" style="flex: {{ stock.analyst.sell }}">{{ stock.analyst.sell }}</div>{% endif %}
+                    {% if stock.analyst.strong_sell %}<div class="analyst-bar ss" style="flex: {{ stock.analyst.strong_sell }}">{{ stock.analyst.strong_sell }}</div>{% endif %}
+                </div>
+                <div class="analyst-legend">
+                    <span>Strong Buy</span>
+                    <span>Buy</span>
+                    <span>Hold</span>
+                    <span>Sell</span>
+                    <span>Strong Sell</span>
+                </div>
+            </a>
+            {% endif %}
+            {% if stock.news %}
+            <div class="news-section">
+                <div class="news-label">Latest News</div>
+                {% for article in stock.news %}
+                <a href="{{ article.link }}" target="_blank" class="news-item">
+                    <div class="news-title">{{ article.title }}</div>
+                    <div class="news-meta"><span class="publisher">{{ article.publisher }}</span> • {{ article.published }}</div>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if categorized.regular_buys %}
+    <div class="section buy collapsed" id="regular-buys">
+        <div class="section-header" onclick="toggleSection(this)">
+            Buy Signals
+            <span class="badge">{{ categorized.regular_buys|length }}</span>
+        </div>
+        <div class="section-content">
+        {% for stock in categorized.regular_buys[:10] %}
+        <a href="/stock/{{ stock.symbol }}" class="stock-card">
+            <div class="stock-info">
+                <div class="stock-symbol">{{ stock.symbol }}.TO</div>
+                <div class="stock-signals">
+                    <span class="signal-tag {{ stock.highlight_signal[0]|lower|replace('&', '')|replace(' ', '') }}">{{ stock.highlight_signal[0] }}</span>
+                </div>
+            </div>
+            <div class="stock-price">
+                <div class="price">${{ "%.2f"|format(stock.price) }}</div>
+            </div>
+        </a>
+        {% endfor %}
+        {% if categorized.regular_buys|length > 10 %}
+        <div class="show-more" onclick="toggleMore(this)">
+            +{{ categorized.regular_buys|length - 10 }} more
+        </div>
+        <div class="more-stocks collapsed">
+            {% for stock in categorized.regular_buys[10:] %}
+            <a href="/stock/{{ stock.symbol }}" class="stock-card">
+                <div class="stock-info">
+                    <div class="stock-symbol">{{ stock.symbol }}.TO</div>
+                    <div class="stock-signals">
+                        <span class="signal-tag {{ stock.highlight_signal[0]|lower|replace('&', '')|replace(' ', '') }}">{{ stock.highlight_signal[0] }}</span>
+                    </div>
+                </div>
+                <div class="stock-price">
+                    <div class="price">${{ "%.2f"|format(stock.price) }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if categorized.regular_sells %}
+    <div class="section sell collapsed" id="regular-sells">
+        <div class="section-header" onclick="toggleSection(this)">
+            Sell Signals
+            <span class="badge">{{ categorized.regular_sells|length }}</span>
+        </div>
+        <div class="section-content">
+        {% for stock in categorized.regular_sells[:10] %}
+        <a href="/stock/{{ stock.symbol }}" class="stock-card">
+            <div class="stock-info">
+                <div class="stock-symbol">{{ stock.symbol }}.TO</div>
+                <div class="stock-signals">
+                    <span class="signal-tag {{ stock.highlight_signal[0]|lower|replace('&', '')|replace(' ', '') }}">{{ stock.highlight_signal[0] }}</span>
+                </div>
+            </div>
+            <div class="stock-price">
+                <div class="price">${{ "%.2f"|format(stock.price) }}</div>
+            </div>
+        </a>
+        {% endfor %}
+        {% if categorized.regular_sells|length > 10 %}
+        <div class="show-more" onclick="toggleMore(this)">
+            +{{ categorized.regular_sells|length - 10 }} more
+        </div>
+        <div class="more-stocks collapsed">
+            {% for stock in categorized.regular_sells[10:] %}
+            <a href="/stock/{{ stock.symbol }}" class="stock-card">
+                <div class="stock-info">
+                    <div class="stock-symbol">{{ stock.symbol }}.TO</div>
+                    <div class="stock-signals">
+                        <span class="signal-tag {{ stock.highlight_signal[0]|lower|replace('&', '')|replace(' ', '') }}">{{ stock.highlight_signal[0] }}</span>
+                    </div>
+                </div>
+                <div class="stock-price">
+                    <div class="price">${{ "%.2f"|format(stock.price) }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not last_scan %}
+    <div class="empty-state">
+        <div class="icon">📈</div>
+        <div class="title">No scan results yet</div>
+        <div>Tap Run Scan to analyze the TSX market</div>
+    </div>
+    {% endif %}
+
+    <div class="market-chart-container">
+        <div class="market-chart-header">VFV - S&P 500 Index ETF</div>
+        <div class="market-chart-widget">
+            <div class="tradingview-widget-container" style="height:100%;width:100%">
+                <div id="market_chart" style="height:100%;width:100%"></div>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script type="text/javascript">
+        new TradingView.widget({
+            "autosize": true,
+            "symbol": "TSX:VFV",
+            "interval": "D",
+            "timezone": "America/Toronto",
+            "theme": "dark",
+            "style": "1",
+            "locale": "en",
+            "toolbar_bg": "#111111",
+            "enable_publishing": false,
+            "hide_top_toolbar": true,
+            "hide_legend": false,
+            "save_image": false,
+            "container_id": "market_chart",
+            "hide_volume": true
+        });
+    </script>
+
+    {% if fear_greed %}
+    <div class="fear-greed-section">
+        <div class="fg-title">Fear & Greed Index</div>
+        <div class="fg-gauge-container">
+            <div class="fg-gauge">
+                <div class="fg-gauge-bg"></div>
+                <div class="fg-needle" style="transform: rotate({{ (fear_greed.score * 1.8) - 90 }}deg);"></div>
+            </div>
+            <div class="fg-labels">
+                <span>Extreme Fear</span>
+                <span>Neutral</span>
+                <span>Extreme Greed</span>
+            </div>
+            <div class="fg-score-display">
+                <div class="fg-score">{{ fear_greed.score }}</div>
+                <div class="fg-rating {{ fear_greed.rating|replace(' ', '-') }}">{{ fear_greed.rating|title }}</div>
+            </div>
+        </div>
+        <div class="fg-history">
+            <div class="fg-history-item">
+                <span class="fg-history-label">Previous Close</span>
+                <span class="fg-history-value">{{ fear_greed.previous_close }}</span>
+            </div>
+            <div class="fg-history-item">
+                <span class="fg-history-label">1 Week Ago</span>
+                <span class="fg-history-value">{{ fear_greed.previous_week }}</span>
+            </div>
+            <div class="fg-history-item">
+                <span class="fg-history-label">1 Month Ago</span>
+                <span class="fg-history-value">{{ fear_greed.previous_month }}</span>
+            </div>
+            <div class="fg-history-item">
+                <span class="fg-history-label">1 Year Ago</span>
+                <span class="fg-history-value">{{ fear_greed.previous_year }}</span>
+            </div>
+        </div>
+        <div class="fg-source">Source: CNN Business</div>
+    </div>
+    {% endif %}
+
+    {% if last_scan %}
+    <div class="last-scan">
+        Last scan: {{ last_scan }}
+    </div>
+    {% endif %}
+
+    <script>
+        let pollInterval;
+
+        function searchStock() {
+            const input = document.getElementById('searchInput');
+            const symbol = input.value.trim().toUpperCase();
+            if (symbol) {
+                window.location.href = '/stock/' + symbol;
+            }
+        }
+
+        // Allow Enter key to search
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                hideDropdown();
+                searchStock();
+            }
+        });
+
+        // Search autocomplete
+        const searchInput = document.getElementById('searchInput');
+        const searchDropdown = document.getElementById('searchDropdown');
+        let searchTimeout;
+
+        searchInput.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+
+            clearTimeout(searchTimeout);
+
+            if (query.length < 1) {
+                hideDropdown();
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                fetch('/api/search?q=' + encodeURIComponent(query))
+                    .then(r => r.json())
+                    .then(matches => {
+                        if (matches.length > 0) {
+                            showDropdown(matches);
+                        } else {
+                            hideDropdown();
+                        }
+                    });
+            }, 150);
+        });
+
+        searchInput.addEventListener('focus', function() {
+            const query = this.value.trim();
+            if (query.length >= 1 && searchDropdown.children.length > 0) {
+                searchDropdown.classList.add('active');
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.search-wrapper')) {
+                hideDropdown();
+            }
+        });
+
+        function showDropdown(matches) {
+            searchDropdown.innerHTML = matches.map(symbol =>
+                `<div class="search-result" onclick="selectSymbol('${symbol}')">
+                    <span class="symbol">${symbol}</span>
+                    <span class="suffix">.TO</span>
+                </div>`
+            ).join('');
+            searchDropdown.classList.add('active');
+        }
+
+        function hideDropdown() {
+            searchDropdown.classList.remove('active');
+        }
+
+        function selectSymbol(symbol) {
+            searchInput.value = symbol;
+            hideDropdown();
+            window.location.href = '/stock/' + symbol;
+        }
+
+        function toggleSection(header) {
+            const section = header.parentElement;
+            section.classList.toggle('collapsed');
+        }
+
+        function toggleMore(btn) {
+            const moreStocks = btn.nextElementSibling;
+            moreStocks.classList.toggle('collapsed');
+            if (moreStocks.classList.contains('collapsed')) {
+                btn.textContent = btn.textContent.replace('Show less', '+' + btn.dataset.count + ' more');
+            } else {
+                btn.dataset.count = btn.textContent.match(/\d+/)[0];
+                btn.textContent = 'Show less';
+            }
+        }
+
+        // Smooth scroll for nav links
+        document.querySelectorAll('.summary-bar a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const target = document.getElementById(targetId);
+                if (target) {
+                    // Expand section if collapsed
+                    if (target.classList.contains('collapsed')) {
+                        target.classList.remove('collapsed');
+                    }
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        function startScan() {
+            const btn = document.getElementById('scanBtn');
+            btn.disabled = true;
+            btn.textContent = 'Scanning...';
+
+            document.getElementById('progressBar').classList.add('active');
+
+            fetch('/api/scan', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'started' || data.status === 'already_running') {
+                        pollProgress();
+                    }
+                });
+        }
+
+        function pollProgress() {
+            pollInterval = setInterval(() => {
+                fetch('/api/status')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.is_scanning) {
+                            const pct = data.total > 0 ? (data.progress / data.total * 100) : 0;
+                            document.getElementById('progressFill').style.width = pct + '%';
+                            document.getElementById('progressText').textContent =
+                                `Scanning ${data.progress}/${data.total} stocks...`;
+                        } else {
+                            clearInterval(pollInterval);
+                            location.reload();
+                        }
+                    });
+            }, 1000);
+        }
+
+        fetch('/api/status')
+            .then(r => r.json())
+            .then(data => {
+                if (data.is_scanning) {
+                    document.getElementById('scanBtn').disabled = true;
+                    document.getElementById('scanBtn').textContent = 'Scanning...';
+                    document.getElementById('progressBar').classList.add('active');
+                    pollProgress();
+                }
+            });
+
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installBanner').style.display = 'block';
+        });
+
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choice) => {
+                    deferredPrompt = null;
+                    document.getElementById('installBanner').style.display = 'none';
+                });
+            }
+        }
+
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('SW registered'))
+                .catch(err => console.log('SW registration failed:', err));
+        }
+    </script>
+</body>
+</html>

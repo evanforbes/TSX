@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+    <title>Backtest - Auction House</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            background: #000; color: #fff;
+            min-height: 100vh;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        a { color: inherit; text-decoration: none; }
+
+        .header {
+            background: #000; padding: 16px 20px;
+            display: flex; align-items: center; gap: 16px;
+            border-bottom: 1px solid #222; position: sticky; top: 0;
+            z-index: 100;
+        }
+        .back-btn { color: #0A84FF; font-size: 17px; }
+        .header h1 { font-size: 20px; font-weight: 700; }
+
+        .run-section {
+            padding: 16px;
+        }
+
+        .run-btn {
+            background: #fff; color: #000;
+            border: none; padding: 14px 24px;
+            border-radius: 50px; font-size: 15px;
+            font-weight: 600; cursor: pointer;
+            width: 100%;
+            touch-action: manipulation;
+        }
+        .run-btn:active { opacity: 0.8; transform: scale(0.98); }
+        .run-btn:disabled { background: #333; color: #666; cursor: not-allowed; transform: none; }
+
+        .progress-bar {
+            background: #222; border-radius: 4px;
+            height: 4px; margin: 12px 16px;
+            overflow: hidden; display: none;
+        }
+        .progress-bar.active { display: block; }
+        .progress-fill {
+            background: #00C805; height: 100%;
+            transition: width 0.3s;
+        }
+        .progress-text {
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 16px;
+        }
+
+        .card {
+            background: #111; margin: 16px;
+            border-radius: 16px; overflow: hidden;
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            font-size: 13px; text-transform: uppercase;
+            letter-spacing: 0.5px; color: #8E8E93;
+            font-weight: 600; border-bottom: 1px solid #222;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            padding: 16px;
+            gap: 12px;
+        }
+
+        @media (max-width: 480px) {
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .summary-stat {
+            text-align: center;
+            padding: 12px 8px;
+            background: #1c1c1e;
+            border-radius: 12px;
+        }
+        .summary-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .summary-value.gold { color: #FFD60A; }
+        .summary-value.silver { color: #98989D; }
+        .summary-value.single { color: #8E8E93; }
+        .summary-label {
+            font-size: 11px;
+            color: #8E8E93;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        .period-tabs {
+            display: flex;
+            padding: 12px 16px;
+            gap: 8px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .period-tab {
+            padding: 10px 20px;
+            background: #1c1c1e;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+            touch-action: manipulation;
+            border: none;
+            color: #fff;
+        }
+        .period-tab:active { opacity: 0.7; }
+        .period-tab.active {
+            background: #0A84FF;
+            color: #fff;
+        }
+
+        .tier-section {
+            margin: 16px;
+        }
+
+        .tier-header {
+            padding: 14px 20px;
+            border-radius: 16px 16px 0 0;
+            font-weight: 600;
+            font-size: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .tier-header.gold {
+            background: linear-gradient(135deg, #FFD60A 0%, #FFCC00 100%);
+            color: #000;
+        }
+        .tier-header.silver {
+            background: linear-gradient(135deg, #98989D 0%, #8E8E93 100%);
+            color: #000;
+        }
+        .tier-header.single {
+            background: #1c1c1e;
+            color: #8E8E93;
+        }
+
+        .tier-content {
+            background: #111;
+            border-radius: 0 0 16px 16px;
+            overflow: hidden;
+        }
+
+        .tier-row {
+            padding: 16px 20px;
+            border-bottom: 1px solid #1c1c1c;
+        }
+        .tier-row:last-child { border-bottom: none; }
+
+        .tier-row-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .signal-type {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .signal-type.buy { color: #00C805; }
+        .signal-type.sell { color: #FF3B30; }
+
+        .signal-count {
+            font-size: 13px;
+            color: #8E8E93;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        @media (max-width: 400px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .stat-box {
+            background: #1c1c1e;
+            padding: 12px 8px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .stat-value.positive { color: #00C805; }
+        .stat-value.negative { color: #FF3B30; }
+        .stat-value.neutral { color: #8E8E93; }
+        .stat-label {
+            font-size: 10px;
+            color: #8E8E93;
+            text-transform: uppercase;
+            margin-top: 4px;
+            letter-spacing: 0.3px;
+        }
+
+        .trade-item {
+            padding: 14px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1c1c1c;
+        }
+        .trade-item:last-child { border-bottom: none; }
+        .trade-item:active { background: #1a1a1a; }
+
+        .trade-info { flex: 1; }
+        .trade-symbol { font-weight: 600; font-size: 15px; }
+        .trade-meta { font-size: 12px; color: #8E8E93; margin-top: 2px; }
+
+        .trade-tier {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .trade-tier.gold { background: #FFD60A; color: #000; }
+        .trade-tier.silver { background: #98989D; color: #000; }
+        .trade-tier.single { background: #48484A; color: #fff; }
+
+        .trade-indicators {
+            font-size: 11px;
+            color: #0A84FF;
+        }
+
+        .trade-return { font-weight: 700; font-size: 17px; }
+        .trade-return.positive { color: #00C805; }
+        .trade-return.negative { color: #FF3B30; }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-state .title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .last-run {
+            text-align: center;
+            font-size: 12px;
+            color: #48484A;
+            padding: 15px;
+        }
+
+        .info-note {
+            background: #1c1c1e;
+            margin: 16px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            color: #8E8E93;
+            line-height: 1.5;
+        }
+
+        .no-data {
+            padding: 20px;
+            text-align: center;
+            color: #48484A;
+            font-size: 14px;
+        }
+
+        .stocks-found {
+            padding: 16px 20px;
+            border-top: 1px solid #222;
+            background: #0d0d0d;
+        }
+        .stocks-found-header {
+            font-size: 12px;
+            color: #8E8E93;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+        .stocks-found-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .stock-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #1c1c1e;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            text-decoration: none;
+            transition: background 0.15s;
+        }
+        .stock-chip:active {
+            background: #2c2c2e;
+        }
+        .buy-badge, .sell-badge {
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .buy-badge {
+            background: #00C805;
+            color: #000;
+        }
+        .sell-badge {
+            background: #FF3B30;
+            color: #fff;
+        }
+
+        /* Indicator Panel */
+        .indicator-panel {
+            background: #111;
+            margin: 0 16px 16px;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .indicator-header {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .indicator-header:active { background: #1a1a1a; }
+        .indicator-title {
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .indicator-count {
+            background: #0A84FF;
+            color: #fff;
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        .indicator-chevron {
+            color: #8E8E93;
+            transition: transform 0.2s;
+        }
+        .indicator-panel.expanded .indicator-chevron {
+            transform: rotate(180deg);
+        }
+        .indicator-content {
+            display: none;
+            padding: 0 16px 16px;
+        }
+        .indicator-panel.expanded .indicator-content {
+            display: block;
+        }
+        .indicator-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        @media (min-width: 400px) {
+            .indicator-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        .indicator-item {
+            background: #1c1c1e;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            touch-action: manipulation;
+            border: 2px solid transparent;
+            transition: all 0.15s;
+        }
+        .indicator-item:active { transform: scale(0.96); }
+        .indicator-item.selected {
+            border-color: #0A84FF;
+            background: rgba(10, 132, 255, 0.15);
+        }
+        .indicator-item .name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .indicator-item .desc {
+            font-size: 10px;
+            color: #8E8E93;
+            margin-top: 2px;
+        }
+        .indicator-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .indicator-actions button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .indicator-actions button:active { opacity: 0.7; }
+        .indicator-actions .reset-btn {
+            background: #2c2c2e;
+            color: #fff;
+        }
+        .indicator-actions .select-all-btn {
+            background: #0A84FF;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/" class="back-btn">Back</a>
+        <h1>Backtest Analysis</h1>
+    </div>
+
+    <!-- Indicator Selection Panel -->
+    <div class="indicator-panel" id="indicatorPanel">
+        <div class="indicator-header" onclick="toggleIndicatorPanel()">
+            <div class="indicator-title">
+                Indicators
+                <span class="indicator-count" id="indicatorCount">8</span>
+            </div>
+            <span class="indicator-chevron">▼</span>
+        </div>
+        <div class="indicator-content">
+            <div class="indicator-grid">
+                <div class="indicator-item selected" data-indicator="RSI" onclick="toggleIndicator(this)">
+                    <div class="name">RSI</div>
+                    <div class="desc">Momentum</div>
+                </div>
+                <div class="indicator-item selected" data-indicator="MACD" onclick="toggleIndicator(this)">
+                    <div class="name">MACD</div>
+                    <div class="desc">Trend</div>
+                </div>
+                <div class="indicator-item selected" data-indicator="SlowSto" onclick="toggleIndicator(this)">
+                    <div class="name">Slow Sto</div>
+                    <div class="desc">Momentum</div>
+                </div>
+                <div class="indicator-item selected" data-indicator="BB" onclick="toggleIndicator(this)">
+                    <div class="name">BB</div>
+                    <div class="desc">Volatility</div>
+                </div>
+                <div class="indicator-item selected" data-indicator="OBV" onclick="toggleIndicator(this)">
+                    <div class="name">OBV</div>
+                    <div class="desc">Volume</div>
+                </div>
+                <div class="indicator-item selected" data-indicator="ADX" onclick="toggleIndicator(this)">
+                    <div class="name">ADX</div>
+                    <div class="desc">Trend Strength</div>
+                </div>
+                <div class="indicator-item selected" data-indicator="WilliamsR" onclick="toggleIndicator(this)">
+                    <div class="name">Williams %R</div>
+                    <div class="desc">Momentum</div>
+                </div>
+                <div class="indicator-item selected" data-indicator="P&F" onclick="toggleIndicator(this)">
+                    <div class="name">P&F</div>
+                    <div class="desc">Pattern</div>
+                </div>
+            </div>
+            <div class="indicator-actions">
+                <button class="reset-btn" onclick="resetIndicators()">Default (4)</button>
+                <button class="select-all-btn" onclick="selectAllIndicators()">Select All</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="run-section">
+        <button class="run-btn" id="runBtn" onclick="startBacktest()" {% if is_running %}disabled{% endif %}>
+            {% if is_running %}Running...{% else %}Run Backtest{% endif %}
+        </button>
+        <button class="run-btn" id="stopBtn" onclick="stopBacktest()" style="display: {% if is_running %}block{% else %}none{% endif %}; background: #FF3B30; color: #fff; margin-top: 10px;">
+            Stop Backtest
+        </button>
+    </div>
+
+    <div class="progress-bar {% if is_running %}active{% endif %}" id="progressBar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+    </div>
+    <div class="progress-text" id="progressText">{% if is_running %}Analyzing stocks...{% endif %}</div>
+
+    {% if results %}
+
+    <div class="card">
+        <div class="card-header">Signal Distribution</div>
+        <div class="summary-grid">
+            <div class="summary-stat">
+                <div class="summary-value">{{ results.symbols_analyzed }}</div>
+                <div class="summary-label">Symbols</div>
+            </div>
+            <div class="summary-stat">
+                <div class="summary-value gold">{{ results.gold_signals|default(0) }}</div>
+                <div class="summary-label">Gold</div>
+            </div>
+            <div class="summary-stat">
+                <div class="summary-value silver">{{ results.silver_signals|default(0) }}</div>
+                <div class="summary-label">Silver</div>
+            </div>
+            <div class="summary-stat">
+                <div class="summary-value single">{{ results.single_signals|default(0) }}</div>
+                <div class="summary-label">Single</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-note">
+        Comparing win rates when multiple indicators align (Gold = 3+, Silver = 2) vs single indicator signals. Higher win rates for Gold/Silver suggests the tier system adds value.
+    </div>
+
+    <div class="period-tabs" id="periodTabs">
+        <button class="period-tab" data-period="5" onclick="switchPeriod(5)">5 Day</button>
+        <button class="period-tab" data-period="10" onclick="switchPeriod(10)">10 Day</button>
+        <button class="period-tab active" data-period="20" onclick="switchPeriod(20)">20 Day</button>
+        <button class="period-tab" data-period="30" onclick="switchPeriod(30)">30 Day</button>
+        <button class="period-tab" data-period="60" onclick="switchPeriod(60)">60 Day</button>
+        <button class="period-tab" data-period="90" onclick="switchPeriod(90)">90 Day</button>
+        <button class="period-tab" data-period="180" onclick="switchPeriod(180)">180 Day</button>
+        <button class="period-tab" data-period="365" onclick="switchPeriod(365)">1 Year</button>
+    </div>
+
+    <!-- Gold Tier -->
+    <div class="tier-section">
+        <div class="tier-header gold">
+            <span>Gold Standard (3+ Indicators)</span>
+            <span>{{ results.gold_signals|default(0) }} signals</span>
+        </div>
+        <div class="tier-content">
+            {% if results.tier_stats.get('GOLD_BUY') %}
+            <div class="tier-row" data-key="GOLD_BUY">
+                <div class="tier-row-header">
+                    <span class="signal-type buy">Buy Signals</span>
+                    <span class="signal-count">{{ results.tier_stats['GOLD_BUY'].total_signals }} trades</span>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['GOLD_BUY'].stats_20d.win_rate and results.tier_stats['GOLD_BUY'].stats_20d.win_rate > 50 %}positive{% elif results.tier_stats['GOLD_BUY'].stats_20d.win_rate and results.tier_stats['GOLD_BUY'].stats_20d.win_rate < 50 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['GOLD_BUY'].stats_5d.win_rate }}"
+                             data-10d="{{ results.tier_stats['GOLD_BUY'].stats_10d.win_rate }}"
+                             data-20d="{{ results.tier_stats['GOLD_BUY'].stats_20d.win_rate }}"
+                             data-30d="{{ results.tier_stats['GOLD_BUY'].stats_30d.win_rate }}"
+                             data-60d="{{ results.tier_stats['GOLD_BUY'].get('stats_60d', {}).get('win_rate', '') }}"
+                             data-90d="{{ results.tier_stats['GOLD_BUY'].get('stats_90d', {}).get('win_rate', '') }}"
+                             data-180d="{{ results.tier_stats['GOLD_BUY'].get('stats_180d', {}).get('win_rate', '') }}"
+                             data-365d="{{ results.tier_stats['GOLD_BUY'].get('stats_365d', {}).get('win_rate', '') }}">
+                            {{ results.tier_stats['GOLD_BUY'].stats_20d.win_rate|default('--', true) }}{% if results.tier_stats['GOLD_BUY'].stats_20d.win_rate %}%{% endif %}
+                        </div>
+                        <div class="stat-label">Win Rate</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['GOLD_BUY'].stats_20d.avg_return and results.tier_stats['GOLD_BUY'].stats_20d.avg_return > 0 %}positive{% elif results.tier_stats['GOLD_BUY'].stats_20d.avg_return and results.tier_stats['GOLD_BUY'].stats_20d.avg_return < 0 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['GOLD_BUY'].stats_5d.avg_return }}"
+                             data-10d="{{ results.tier_stats['GOLD_BUY'].stats_10d.avg_return }}"
+                             data-20d="{{ results.tier_stats['GOLD_BUY'].stats_20d.avg_return }}"
+                             data-30d="{{ results.tier_stats['GOLD_BUY'].stats_30d.avg_return }}"
+                             data-60d="{{ results.tier_stats['GOLD_BUY'].get('stats_60d', {}).get('avg_return', '') }}"
+                             data-90d="{{ results.tier_stats['GOLD_BUY'].get('stats_90d', {}).get('avg_return', '') }}"
+                             data-180d="{{ results.tier_stats['GOLD_BUY'].get('stats_180d', {}).get('avg_return', '') }}"
+                             data-365d="{{ results.tier_stats['GOLD_BUY'].get('stats_365d', {}).get('avg_return', '') }}">
+                            {{ results.tier_stats['GOLD_BUY'].stats_20d.avg_return|default('--', true) }}{% if results.tier_stats['GOLD_BUY'].stats_20d.avg_return %}%{% endif %}
+                        </div>
+                        <div class="stat-label">Avg Return</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value neutral"
+                             data-5d="{{ results.tier_stats['GOLD_BUY'].stats_5d.count }}"
+                             data-10d="{{ results.tier_stats['GOLD_BUY'].stats_10d.count }}"
+                             data-20d="{{ results.tier_stats['GOLD_BUY'].stats_20d.count }}"
+                             data-30d="{{ results.tier_stats['GOLD_BUY'].stats_30d.count }}"
+                             data-60d="{{ results.tier_stats['GOLD_BUY'].get('stats_60d', {}).get('count', '') }}"
+                             data-90d="{{ results.tier_stats['GOLD_BUY'].get('stats_90d', {}).get('count', '') }}"
+                             data-180d="{{ results.tier_stats['GOLD_BUY'].get('stats_180d', {}).get('count', '') }}"
+                             data-365d="{{ results.tier_stats['GOLD_BUY'].get('stats_365d', {}).get('count', '') }}">
+                            {{ results.tier_stats['GOLD_BUY'].stats_20d.count|default('--', true) }}
+                        </div>
+                        <div class="stat-label">Trades</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['GOLD_BUY'].stats_20d.profit_factor and results.tier_stats['GOLD_BUY'].stats_20d.profit_factor > 1 %}positive{% elif results.tier_stats['GOLD_BUY'].stats_20d.profit_factor and results.tier_stats['GOLD_BUY'].stats_20d.profit_factor < 1 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['GOLD_BUY'].stats_5d.profit_factor }}"
+                             data-10d="{{ results.tier_stats['GOLD_BUY'].stats_10d.profit_factor }}"
+                             data-20d="{{ results.tier_stats['GOLD_BUY'].stats_20d.profit_factor }}"
+                             data-30d="{{ results.tier_stats['GOLD_BUY'].stats_30d.profit_factor }}"
+                             data-60d="{{ results.tier_stats['GOLD_BUY'].get('stats_60d', {}).get('profit_factor', '') }}"
+                             data-90d="{{ results.tier_stats['GOLD_BUY'].get('stats_90d', {}).get('profit_factor', '') }}"
+                             data-180d="{{ results.tier_stats['GOLD_BUY'].get('stats_180d', {}).get('profit_factor', '') }}"
+                             data-365d="{{ results.tier_stats['GOLD_BUY'].get('stats_365d', {}).get('profit_factor', '') }}">
+                            {{ results.tier_stats['GOLD_BUY'].stats_20d.profit_factor|default('--', true) }}
+                        </div>
+                        <div class="stat-label">Profit Factor</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% if results.tier_stats.get('GOLD_SELL') %}
+            <div class="tier-row" data-key="GOLD_SELL">
+                <div class="tier-row-header">
+                    <span class="signal-type sell">Sell Signals</span>
+                    <span class="signal-count">{{ results.tier_stats['GOLD_SELL'].total_signals }} trades</span>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['GOLD_SELL'].stats_20d.win_rate and results.tier_stats['GOLD_SELL'].stats_20d.win_rate > 50 %}positive{% elif results.tier_stats['GOLD_SELL'].stats_20d.win_rate and results.tier_stats['GOLD_SELL'].stats_20d.win_rate < 50 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['GOLD_SELL'].stats_5d.win_rate }}"
+                             data-10d="{{ results.tier_stats['GOLD_SELL'].stats_10d.win_rate }}"
+                             data-20d="{{ results.tier_stats['GOLD_SELL'].stats_20d.win_rate }}"
+                             data-30d="{{ results.tier_stats['GOLD_SELL'].stats_30d.win_rate }}"
+                             data-60d="{{ results.tier_stats['GOLD_SELL'].get('stats_60d', {}).get('win_rate', '') }}"
+                             data-90d="{{ results.tier_stats['GOLD_SELL'].get('stats_90d', {}).get('win_rate', '') }}"
+                             data-180d="{{ results.tier_stats['GOLD_SELL'].get('stats_180d', {}).get('win_rate', '') }}"
+                             data-365d="{{ results.tier_stats['GOLD_SELL'].get('stats_365d', {}).get('win_rate', '') }}">
+                            {{ results.tier_stats['GOLD_SELL'].stats_20d.win_rate|default('--', true) }}{% if results.tier_stats['GOLD_SELL'].stats_20d.win_rate %}%{% endif %}
+                        </div>
+                        <div class="stat-label">Win Rate</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['GOLD_SELL'].stats_20d.avg_return and results.tier_stats['GOLD_SELL'].stats_20d.avg_return < 0 %}positive{% elif results.tier_stats['GOLD_SELL'].stats_20d.avg_return and results.tier_stats['GOLD_SELL'].stats_20d.avg_return > 0 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['GOLD_SELL'].stats_5d.avg_return }}"
+                             data-10d="{{ results.tier_stats['GOLD_SELL'].stats_10d.avg_return }}"
+                             data-20d="{{ results.tier_stats['GOLD_SELL'].stats_20d.avg_return }}"
+                             data-30d="{{ results.tier_stats['GOLD_SELL'].stats_30d.avg_return }}"
+                             data-60d="{{ results.tier_stats['GOLD_SELL'].get('stats_60d', {}).get('avg_return', '') }}"
+                             data-90d="{{ results.tier_stats['GOLD_SELL'].get('stats_90d', {}).get('avg_return', '') }}"
+                             data-180d="{{ results.tier_stats['GOLD_SELL'].get('stats_180d', {}).get('avg_return', '') }}"
+                             data-365d="{{ results.tier_stats['GOLD_SELL'].get('stats_365d', {}).get('avg_return', '') }}">
+                            {{ results.tier_stats['GOLD_SELL'].stats_20d.avg_return|default('--', true) }}{% if results.tier_stats['GOLD_SELL'].stats_20d.avg_return %}%{% endif %}
+                        </div>
+                        <div class="stat-label">Avg Return</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value neutral"
+                             data-5d="{{ results.tier_stats['GOLD_SELL'].stats_5d.count }}"
+                             data-10d="{{ results.tier_stats['GOLD_SELL'].stats_10d.count }}"
+                             data-20d="{{ results.tier_stats['GOLD_SELL'].stats_20d.count }}"
+                             data-30d="{{ results.tier_stats['GOLD_SELL'].stats_30d.count }}"
+                             data-60d="{{ results.tier_stats['GOLD_SELL'].get('stats_60d', {}).get('count', '') }}"
+                             data-90d="{{ results.tier_stats['GOLD_SELL'].get('stats_90d', {}).get('count', '') }}"
+                             data-180d="{{ results.tier_stats['GOLD_SELL'].get('stats_180d', {}).get('count', '') }}"
+                             data-365d="{{ results.tier_stats['GOLD_SELL'].get('stats_365d', {}).get('count', '') }}">
+                            {{ results.tier_stats['GOLD_SELL'].stats_20d.count|default('--', true) }}
+                        </div>
+                        <div class="stat-label">Trades</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['GOLD_SELL'].stats_20d.profit_factor and results.tier_stats['GOLD_SELL'].stats_20d.profit_factor > 1 %}positive{% elif results.tier_stats['GOLD_SELL'].stats_20d.profit_factor and results.tier_stats['GOLD_SELL'].stats_20d.profit_factor < 1 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['GOLD_SELL'].stats_5d.profit_factor }}"
+                             data-10d="{{ results.tier_stats['GOLD_SELL'].stats_10d.profit_factor }}"
+                             data-20d="{{ results.tier_stats['GOLD_SELL'].stats_20d.profit_factor }}"
+                             data-30d="{{ results.tier_stats['GOLD_SELL'].stats_30d.profit_factor }}"
+                             data-60d="{{ results.tier_stats['GOLD_SELL'].get('stats_60d', {}).get('profit_factor', '') }}"
+                             data-90d="{{ results.tier_stats['GOLD_SELL'].get('stats_90d', {}).get('profit_factor', '') }}"
+                             data-180d="{{ results.tier_stats['GOLD_SELL'].get('stats_180d', {}).get('profit_factor', '') }}"
+                             data-365d="{{ results.tier_stats['GOLD_SELL'].get('stats_365d', {}).get('profit_factor', '') }}">
+                            {{ results.tier_stats['GOLD_SELL'].stats_20d.profit_factor|default('--', true) }}
+                        </div>
+                        <div class="stat-label">Profit Factor</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% if not results.tier_stats.get('GOLD_BUY') and not results.tier_stats.get('GOLD_SELL') %}
+            <div class="no-data">No Gold signals in backtest period</div>
+            {% endif %}
+            <div class="stocks-found" id="goldStocksFound" {% if not results.gold_stocks and not results.gold_signals_list %}style="display:none"{% endif %}>
+                <div class="stocks-found-header">Stocks with Gold Signals</div>
+                <div class="stocks-found-list">
+                    {% for stock in results.gold_stocks %}
+                    <a href="/stock/{{ stock.symbol }}" class="stock-chip">
+                        {{ stock.symbol }}
+                        {% if stock.buy_signals > 0 %}<span class="buy-badge">{{ stock.buy_signals }}B</span>{% endif %}
+                        {% if stock.sell_signals > 0 %}<span class="sell-badge">{{ stock.sell_signals }}S</span>{% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Silver Tier -->
+    <div class="tier-section">
+        <div class="tier-header silver">
+            <span>Silver Standard (2 Indicators)</span>
+            <span>{{ results.silver_signals|default(0) }} signals</span>
+        </div>
+        <div class="tier-content">
+            {% if results.tier_stats.get('SILVER_BUY') %}
+            <div class="tier-row" data-key="SILVER_BUY">
+                <div class="tier-row-header">
+                    <span class="signal-type buy">Buy Signals</span>
+                    <span class="signal-count">{{ results.tier_stats['SILVER_BUY'].total_signals }} trades</span>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['SILVER_BUY'].stats_20d.win_rate and results.tier_stats['SILVER_BUY'].stats_20d.win_rate > 50 %}positive{% elif results.tier_stats['SILVER_BUY'].stats_20d.win_rate and results.tier_stats['SILVER_BUY'].stats_20d.win_rate < 50 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['SILVER_BUY'].stats_5d.win_rate }}"
+                             data-10d="{{ results.tier_stats['SILVER_BUY'].stats_10d.win_rate }}"
+                             data-20d="{{ results.tier_stats['SILVER_BUY'].stats_20d.win_rate }}"
+                             data-30d="{{ results.tier_stats['SILVER_BUY'].stats_30d.win_rate }}"
+                             data-60d="{{ results.tier_stats['SILVER_BUY'].get('stats_60d', {}).get('win_rate', '') }}"
+                             data-90d="{{ results.tier_stats['SILVER_BUY'].get('stats_90d', {}).get('win_rate', '') }}"
+                             data-180d="{{ results.tier_stats['SILVER_BUY'].get('stats_180d', {}).get('win_rate', '') }}"
+                             data-365d="{{ results.tier_stats['SILVER_BUY'].get('stats_365d', {}).get('win_rate', '') }}">
+                            {{ results.tier_stats['SILVER_BUY'].stats_20d.win_rate|default('--', true) }}{% if results.tier_stats['SILVER_BUY'].stats_20d.win_rate %}%{% endif %}
+                        </div>
+                        <div class="stat-label">Win Rate</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['SILVER_BUY'].stats_20d.avg_return and results.tier_stats['SILVER_BUY'].stats_20d.avg_return > 0 %}positive{% elif results.tier_stats['SILVER_BUY'].stats_20d.avg_return and results.tier_stats['SILVER_BUY'].stats_20d.avg_return < 0 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['SILVER_BUY'].stats_5d.avg_return }}"
+                             data-10d="{{ results.tier_stats['SILVER_BUY'].stats_10d.avg_return }}"
+                             data-20d="{{ results.tier_stats['SILVER_BUY'].stats_20d.avg_return }}"
+                             data-30d="{{ results.tier_stats['SILVER_BUY'].stats_30d.avg_return }}"
+                             data-60d="{{ results.tier_stats['SILVER_BUY'].get('stats_60d', {}).get('avg_return', '') }}"
+                             data-90d="{{ results.tier_stats['SILVER_BUY'].get('stats_90d', {}).get('avg_return', '') }}"
+                             data-180d="{{ results.tier_stats['SILVER_BUY'].get('stats_180d', {}).get('avg_return', '') }}"
+                             data-365d="{{ results.tier_stats['SILVER_BUY'].get('stats_365d', {}).get('avg_return', '') }}">
+                            {{ results.tier_stats['SILVER_BUY'].stats_20d.avg_return|default('--', true) }}{% if results.tier_stats['SILVER_BUY'].stats_20d.avg_return %}%{% endif %}
+                        </div>
+                        <div class="stat-label">Avg Return</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value neutral"
+                             data-5d="{{ results.tier_stats['SILVER_BUY'].stats_5d.count }}"
+                             data-10d="{{ results.tier_stats['SILVER_BUY'].stats_10d.count }}"
+                             data-20d="{{ results.tier_stats['SILVER_BUY'].stats_20d.count }}"
+                             data-30d="{{ results.tier_stats['SILVER_BUY'].stats_30d.count }}"
+                             data-60d="{{ results.tier_stats['SILVER_BUY'].get('stats_60d', {}).get('count', '') }}"
+                             data-90d="{{ results.tier_stats['SILVER_BUY'].get('stats_90d', {}).get('count', '') }}"
+                             data-180d="{{ results.tier_stats['SILVER_BUY'].get('stats_180d', {}).get('count', '') }}"
+                             data-365d="{{ results.tier_stats['SILVER_BUY'].get('stats_365d', {}).get('count', '') }}">
+                            {{ results.tier_stats['SILVER_BUY'].stats_20d.count|default('--', true) }}
+                        </div>
+                        <div class="stat-label">Trades</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['SILVER_BUY'].stats_20d.profit_factor and results.tier_stats['SILVER_BUY'].stats_20d.profit_factor > 1 %}positive{% elif results.tier_stats['SILVER_BUY'].stats_20d.profit_factor and results.tier_stats['SILVER_BUY'].stats_20d.profit_factor < 1 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['SILVER_BUY'].stats_5d.profit_factor }}"
+                             data-10d="{{ results.tier_stats['SILVER_BUY'].stats_10d.profit_factor }}"
+                             data-20d="{{ results.tier_stats['SILVER_BUY'].stats_20d.profit_factor }}"
+                             data-30d="{{ results.tier_stats['SILVER_BUY'].stats_30d.profit_factor }}"
+                             data-60d="{{ results.tier_stats['SILVER_BUY'].get('stats_60d', {}).get('profit_factor', '') }}"
+                             data-90d="{{ results.tier_stats['SILVER_BUY'].get('stats_90d', {}).get('profit_factor', '') }}"
+                             data-180d="{{ results.tier_stats['SILVER_BUY'].get('stats_180d', {}).get('profit_factor', '') }}"
+                             data-365d="{{ results.tier_stats['SILVER_BUY'].get('stats_365d', {}).get('profit_factor', '') }}">
+                            {{ results.tier_stats['SILVER_BUY'].stats_20d.profit_factor|default('--', true) }}
+                        </div>
+                        <div class="stat-label">Profit Factor</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% if results.tier_stats.get('SILVER_SELL') %}
+            <div class="tier-row" data-key="SILVER_SELL">
+                <div class="tier-row-header">
+                    <span class="signal-type sell">Sell Signals</span>
+                    <span class="signal-count">{{ results.tier_stats['SILVER_SELL'].total_signals }} trades</span>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['SILVER_SELL'].stats_20d.win_rate and results.tier_stats['SILVER_SELL'].stats_20d.win_rate > 50 %}positive{% elif results.tier_stats['SILVER_SELL'].stats_20d.win_rate and results.tier_stats['SILVER_SELL'].stats_20d.win_rate < 50 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['SILVER_SELL'].stats_5d.win_rate }}"
+                             data-10d="{{ results.tier_stats['SILVER_SELL'].stats_10d.win_rate }}"
+                             data-20d="{{ results.tier_stats['SILVER_SELL'].stats_20d.win_rate }}"
+                             data-30d="{{ results.tier_stats['SILVER_SELL'].stats_30d.win_rate }}"
+                             data-60d="{{ results.tier_stats['SILVER_SELL'].get('stats_60d', {}).get('win_rate', '') }}"
+                             data-90d="{{ results.tier_stats['SILVER_SELL'].get('stats_90d', {}).get('win_rate', '') }}"
+                             data-180d="{{ results.tier_stats['SILVER_SELL'].get('stats_180d', {}).get('win_rate', '') }}"
+                             data-365d="{{ results.tier_stats['SILVER_SELL'].get('stats_365d', {}).get('win_rate', '') }}">
+                            {{ results.tier_stats['SILVER_SELL'].stats_20d.win_rate|default('--', true) }}{% if results.tier_stats['SILVER_SELL'].stats_20d.win_rate %}%{% endif %}
+                        </div>
+                        <div class="stat-label">Win Rate</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['SILVER_SELL'].stats_20d.avg_return and results.tier_stats['SILVER_SELL'].stats_20d.avg_return < 0 %}positive{% elif results.tier_stats['SILVER_SELL'].stats_20d.avg_return and results.tier_stats['SILVER_SELL'].stats_20d.avg_return > 0 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['SILVER_SELL'].stats_5d.avg_return }}"
+                             data-10d="{{ results.tier_stats['SILVER_SELL'].stats_10d.avg_return }}"
+                             data-20d="{{ results.tier_stats['SILVER_SELL'].stats_20d.avg_return }}"
+                             data-30d="{{ results.tier_stats['SILVER_SELL'].stats_30d.avg_return }}"
+                             data-60d="{{ results.tier_stats['SILVER_SELL'].get('stats_60d', {}).get('avg_return', '') }}"
+                             data-90d="{{ results.tier_stats['SILVER_SELL'].get('stats_90d', {}).get('avg_return', '') }}"
+                             data-180d="{{ results.tier_stats['SILVER_SELL'].get('stats_180d', {}).get('avg_return', '') }}"
+                             data-365d="{{ results.tier_stats['SILVER_SELL'].get('stats_365d', {}).get('avg_return', '') }}">
+                            {{ results.tier_stats['SILVER_SELL'].stats_20d.avg_return|default('--', true) }}{% if results.tier_stats['SILVER_SELL'].stats_20d.avg_return %}%{% endif %}
+                        </div>
+                        <div class="stat-label">Avg Return</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value neutral"
+                             data-5d="{{ results.tier_stats['SILVER_SELL'].stats_5d.count }}"
+                             data-10d="{{ results.tier_stats['SILVER_SELL'].stats_10d.count }}"
+                             data-20d="{{ results.tier_stats['SILVER_SELL'].stats_20d.count }}"
+                             data-30d="{{ results.tier_stats['SILVER_SELL'].stats_30d.count }}"
+                             data-60d="{{ results.tier_stats['SILVER_SELL'].get('stats_60d', {}).get('count', '') }}"
+                             data-90d="{{ results.tier_stats['SILVER_SELL'].get('stats_90d', {}).get('count', '') }}"
+                             data-180d="{{ results.tier_stats['SILVER_SELL'].get('stats_180d', {}).get('count', '') }}"
+                             data-365d="{{ results.tier_stats['SILVER_SELL'].get('stats_365d', {}).get('count', '') }}">
+                            {{ results.tier_stats['SILVER_SELL'].stats_20d.count|default('--', true) }}
+                        </div>
+                        <div class="stat-label">Trades</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['SILVER_SELL'].stats_20d.profit_factor and results.tier_stats['SILVER_SELL'].stats_20d.profit_factor > 1 %}positive{% elif results.tier_stats['SILVER_SELL'].stats_20d.profit_factor and results.tier_stats['SILVER_SELL'].stats_20d.profit_factor < 1 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['SILVER_SELL'].stats_5d.profit_factor }}"
+                             data-10d="{{ results.tier_stats['SILVER_SELL'].stats_10d.profit_factor }}"
+                             data-20d="{{ results.tier_stats['SILVER_SELL'].stats_20d.profit_factor }}"
+                             data-30d="{{ results.tier_stats['SILVER_SELL'].stats_30d.profit_factor }}"
+                             data-60d="{{ results.tier_stats['SILVER_SELL'].get('stats_60d', {}).get('profit_factor', '') }}"
+                             data-90d="{{ results.tier_stats['SILVER_SELL'].get('stats_90d', {}).get('profit_factor', '') }}"
+                             data-180d="{{ results.tier_stats['SILVER_SELL'].get('stats_180d', {}).get('profit_factor', '') }}"
+                             data-365d="{{ results.tier_stats['SILVER_SELL'].get('stats_365d', {}).get('profit_factor', '') }}">
+                            {{ results.tier_stats['SILVER_SELL'].stats_20d.profit_factor|default('--', true) }}
+                        </div>
+                        <div class="stat-label">Profit Factor</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% if not results.tier_stats.get('SILVER_BUY') and not results.tier_stats.get('SILVER_SELL') %}
+            <div class="no-data">No Silver signals in backtest period</div>
+            {% endif %}
+            <div class="stocks-found" id="silverStocksFound" {% if not results.silver_stocks and not results.silver_signals_list %}style="display:none"{% endif %}>
+                <div class="stocks-found-header">Stocks with Silver Signals</div>
+                <div class="stocks-found-list">
+                    {% for stock in results.silver_stocks %}
+                    <a href="/stock/{{ stock.symbol }}" class="stock-chip">
+                        {{ stock.symbol }}
+                        {% if stock.buy_signals > 0 %}<span class="buy-badge">{{ stock.buy_signals }}B</span>{% endif %}
+                        {% if stock.sell_signals > 0 %}<span class="sell-badge">{{ stock.sell_signals }}S</span>{% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Single Indicator (baseline) -->
+    <div class="tier-section">
+        <div class="tier-header single">
+            <span>Single Indicator (Baseline)</span>
+            <span>{{ results.single_signals|default(0) }} signals</span>
+        </div>
+        <div class="tier-content">
+            {% if results.tier_stats.get('SINGLE_BUY') %}
+            <div class="tier-row" data-key="SINGLE_BUY">
+                <div class="tier-row-header">
+                    <span class="signal-type buy">Buy Signals</span>
+                    <span class="signal-count">{{ results.tier_stats['SINGLE_BUY'].total_signals }} trades</span>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['SINGLE_BUY'].stats_20d.win_rate and results.tier_stats['SINGLE_BUY'].stats_20d.win_rate > 50 %}positive{% elif results.tier_stats['SINGLE_BUY'].stats_20d.win_rate and results.tier_stats['SINGLE_BUY'].stats_20d.win_rate < 50 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['SINGLE_BUY'].stats_5d.win_rate }}"
+                             data-10d="{{ results.tier_stats['SINGLE_BUY'].stats_10d.win_rate }}"
+                             data-20d="{{ results.tier_stats['SINGLE_BUY'].stats_20d.win_rate }}"
+                             data-30d="{{ results.tier_stats['SINGLE_BUY'].stats_30d.win_rate }}"
+                             data-60d="{{ results.tier_stats['SINGLE_BUY'].get('stats_60d', {}).get('win_rate', '') }}"
+                             data-90d="{{ results.tier_stats['SINGLE_BUY'].get('stats_90d', {}).get('win_rate', '') }}"
+                             data-180d="{{ results.tier_stats['SINGLE_BUY'].get('stats_180d', {}).get('win_rate', '') }}"
+                             data-365d="{{ results.tier_stats['SINGLE_BUY'].get('stats_365d', {}).get('win_rate', '') }}">
+                            {{ results.tier_stats['SINGLE_BUY'].stats_20d.win_rate|default('--', true) }}{% if results.tier_stats['SINGLE_BUY'].stats_20d.win_rate %}%{% endif %}
+                        </div>
+                        <div class="stat-label">Win Rate</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['SINGLE_BUY'].stats_20d.avg_return and results.tier_stats['SINGLE_BUY'].stats_20d.avg_return > 0 %}positive{% elif results.tier_stats['SINGLE_BUY'].stats_20d.avg_return and results.tier_stats['SINGLE_BUY'].stats_20d.avg_return < 0 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['SINGLE_BUY'].stats_5d.avg_return }}"
+                             data-10d="{{ results.tier_stats['SINGLE_BUY'].stats_10d.avg_return }}"
+                             data-20d="{{ results.tier_stats['SINGLE_BUY'].stats_20d.avg_return }}"
+                             data-30d="{{ results.tier_stats['SINGLE_BUY'].stats_30d.avg_return }}"
+                             data-60d="{{ results.tier_stats['SINGLE_BUY'].get('stats_60d', {}).get('avg_return', '') }}"
+                             data-90d="{{ results.tier_stats['SINGLE_BUY'].get('stats_90d', {}).get('avg_return', '') }}"
+                             data-180d="{{ results.tier_stats['SINGLE_BUY'].get('stats_180d', {}).get('avg_return', '') }}"
+                             data-365d="{{ results.tier_stats['SINGLE_BUY'].get('stats_365d', {}).get('avg_return', '') }}">
+                            {{ results.tier_stats['SINGLE_BUY'].stats_20d.avg_return|default('--', true) }}{% if results.tier_stats['SINGLE_BUY'].stats_20d.avg_return %}%{% endif %}
+                        </div>
+                        <div class="stat-label">Avg Return</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value neutral"
+                             data-5d="{{ results.tier_stats['SINGLE_BUY'].stats_5d.count }}"
+                             data-10d="{{ results.tier_stats['SINGLE_BUY'].stats_10d.count }}"
+                             data-20d="{{ results.tier_stats['SINGLE_BUY'].stats_20d.count }}"
+                             data-30d="{{ results.tier_stats['SINGLE_BUY'].stats_30d.count }}"
+                             data-60d="{{ results.tier_stats['SINGLE_BUY'].get('stats_60d', {}).get('count', '') }}"
+                             data-90d="{{ results.tier_stats['SINGLE_BUY'].get('stats_90d', {}).get('count', '') }}"
+                             data-180d="{{ results.tier_stats['SINGLE_BUY'].get('stats_180d', {}).get('count', '') }}"
+                             data-365d="{{ results.tier_stats['SINGLE_BUY'].get('stats_365d', {}).get('count', '') }}">
+                            {{ results.tier_stats['SINGLE_BUY'].stats_20d.count|default('--', true) }}
+                        </div>
+                        <div class="stat-label">Trades</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['SINGLE_BUY'].stats_20d.profit_factor and results.tier_stats['SINGLE_BUY'].stats_20d.profit_factor > 1 %}positive{% elif results.tier_stats['SINGLE_BUY'].stats_20d.profit_factor and results.tier_stats['SINGLE_BUY'].stats_20d.profit_factor < 1 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['SINGLE_BUY'].stats_5d.profit_factor }}"
+                             data-10d="{{ results.tier_stats['SINGLE_BUY'].stats_10d.profit_factor }}"
+                             data-20d="{{ results.tier_stats['SINGLE_BUY'].stats_20d.profit_factor }}"
+                             data-30d="{{ results.tier_stats['SINGLE_BUY'].stats_30d.profit_factor }}"
+                             data-60d="{{ results.tier_stats['SINGLE_BUY'].get('stats_60d', {}).get('profit_factor', '') }}"
+                             data-90d="{{ results.tier_stats['SINGLE_BUY'].get('stats_90d', {}).get('profit_factor', '') }}"
+                             data-180d="{{ results.tier_stats['SINGLE_BUY'].get('stats_180d', {}).get('profit_factor', '') }}"
+                             data-365d="{{ results.tier_stats['SINGLE_BUY'].get('stats_365d', {}).get('profit_factor', '') }}">
+                            {{ results.tier_stats['SINGLE_BUY'].stats_20d.profit_factor|default('--', true) }}
+                        </div>
+                        <div class="stat-label">Profit Factor</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% if results.tier_stats.get('SINGLE_SELL') %}
+            <div class="tier-row" data-key="SINGLE_SELL">
+                <div class="tier-row-header">
+                    <span class="signal-type sell">Sell Signals</span>
+                    <span class="signal-count">{{ results.tier_stats['SINGLE_SELL'].total_signals }} trades</span>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['SINGLE_SELL'].stats_20d.win_rate and results.tier_stats['SINGLE_SELL'].stats_20d.win_rate > 50 %}positive{% elif results.tier_stats['SINGLE_SELL'].stats_20d.win_rate and results.tier_stats['SINGLE_SELL'].stats_20d.win_rate < 50 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['SINGLE_SELL'].stats_5d.win_rate }}"
+                             data-10d="{{ results.tier_stats['SINGLE_SELL'].stats_10d.win_rate }}"
+                             data-20d="{{ results.tier_stats['SINGLE_SELL'].stats_20d.win_rate }}"
+                             data-30d="{{ results.tier_stats['SINGLE_SELL'].stats_30d.win_rate }}"
+                             data-60d="{{ results.tier_stats['SINGLE_SELL'].get('stats_60d', {}).get('win_rate', '') }}"
+                             data-90d="{{ results.tier_stats['SINGLE_SELL'].get('stats_90d', {}).get('win_rate', '') }}"
+                             data-180d="{{ results.tier_stats['SINGLE_SELL'].get('stats_180d', {}).get('win_rate', '') }}"
+                             data-365d="{{ results.tier_stats['SINGLE_SELL'].get('stats_365d', {}).get('win_rate', '') }}">
+                            {{ results.tier_stats['SINGLE_SELL'].stats_20d.win_rate|default('--', true) }}{% if results.tier_stats['SINGLE_SELL'].stats_20d.win_rate %}%{% endif %}
+                        </div>
+                        <div class="stat-label">Win Rate</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['SINGLE_SELL'].stats_20d.avg_return and results.tier_stats['SINGLE_SELL'].stats_20d.avg_return < 0 %}positive{% elif results.tier_stats['SINGLE_SELL'].stats_20d.avg_return and results.tier_stats['SINGLE_SELL'].stats_20d.avg_return > 0 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['SINGLE_SELL'].stats_5d.avg_return }}"
+                             data-10d="{{ results.tier_stats['SINGLE_SELL'].stats_10d.avg_return }}"
+                             data-20d="{{ results.tier_stats['SINGLE_SELL'].stats_20d.avg_return }}"
+                             data-30d="{{ results.tier_stats['SINGLE_SELL'].stats_30d.avg_return }}"
+                             data-60d="{{ results.tier_stats['SINGLE_SELL'].get('stats_60d', {}).get('avg_return', '') }}"
+                             data-90d="{{ results.tier_stats['SINGLE_SELL'].get('stats_90d', {}).get('avg_return', '') }}"
+                             data-180d="{{ results.tier_stats['SINGLE_SELL'].get('stats_180d', {}).get('avg_return', '') }}"
+                             data-365d="{{ results.tier_stats['SINGLE_SELL'].get('stats_365d', {}).get('avg_return', '') }}">
+                            {{ results.tier_stats['SINGLE_SELL'].stats_20d.avg_return|default('--', true) }}{% if results.tier_stats['SINGLE_SELL'].stats_20d.avg_return %}%{% endif %}
+                        </div>
+                        <div class="stat-label">Avg Return</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value neutral"
+                             data-5d="{{ results.tier_stats['SINGLE_SELL'].stats_5d.count }}"
+                             data-10d="{{ results.tier_stats['SINGLE_SELL'].stats_10d.count }}"
+                             data-20d="{{ results.tier_stats['SINGLE_SELL'].stats_20d.count }}"
+                             data-30d="{{ results.tier_stats['SINGLE_SELL'].stats_30d.count }}"
+                             data-60d="{{ results.tier_stats['SINGLE_SELL'].get('stats_60d', {}).get('count', '') }}"
+                             data-90d="{{ results.tier_stats['SINGLE_SELL'].get('stats_90d', {}).get('count', '') }}"
+                             data-180d="{{ results.tier_stats['SINGLE_SELL'].get('stats_180d', {}).get('count', '') }}"
+                             data-365d="{{ results.tier_stats['SINGLE_SELL'].get('stats_365d', {}).get('count', '') }}">
+                            {{ results.tier_stats['SINGLE_SELL'].stats_20d.count|default('--', true) }}
+                        </div>
+                        <div class="stat-label">Trades</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value {% if results.tier_stats['SINGLE_SELL'].stats_20d.profit_factor and results.tier_stats['SINGLE_SELL'].stats_20d.profit_factor > 1 %}positive{% elif results.tier_stats['SINGLE_SELL'].stats_20d.profit_factor and results.tier_stats['SINGLE_SELL'].stats_20d.profit_factor < 1 %}negative{% else %}neutral{% endif %}"
+                             data-5d="{{ results.tier_stats['SINGLE_SELL'].stats_5d.profit_factor }}"
+                             data-10d="{{ results.tier_stats['SINGLE_SELL'].stats_10d.profit_factor }}"
+                             data-20d="{{ results.tier_stats['SINGLE_SELL'].stats_20d.profit_factor }}"
+                             data-30d="{{ results.tier_stats['SINGLE_SELL'].stats_30d.profit_factor }}"
+                             data-60d="{{ results.tier_stats['SINGLE_SELL'].get('stats_60d', {}).get('profit_factor', '') }}"
+                             data-90d="{{ results.tier_stats['SINGLE_SELL'].get('stats_90d', {}).get('profit_factor', '') }}"
+                             data-180d="{{ results.tier_stats['SINGLE_SELL'].get('stats_180d', {}).get('profit_factor', '') }}"
+                             data-365d="{{ results.tier_stats['SINGLE_SELL'].get('stats_365d', {}).get('profit_factor', '') }}">
+                            {{ results.tier_stats['SINGLE_SELL'].stats_20d.profit_factor|default('--', true) }}
+                        </div>
+                        <div class="stat-label">Profit Factor</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if results.top_trades %}
+    <div class="card">
+        <div class="card-header" id="topTradesHeader">Top 10 Trades (<span class="period-label">20-Day</span> Return)</div>
+        {% for trade in results.top_trades %}
+        <a href="/stock/{{ trade.symbol }}" class="trade-item">
+            <div class="trade-info">
+                <div class="trade-symbol">
+                    {{ trade.symbol }}.TO
+                    <span class="trade-tier {{ trade.tier|lower }}">{{ trade.tier }}</span>
+                </div>
+                <div class="trade-meta">{{ trade.date }}</div>
+                <div class="trade-indicators">{{ trade.indicators|join(', ') }}</div>
+            </div>
+            <div class="trade-return positive trade-return-value"
+                 data-5d="{{ trade.return_5d }}"
+                 data-10d="{{ trade.return_10d }}"
+                 data-20d="{{ trade.return_20d }}"
+                 data-30d="{{ trade.return_30d }}"
+                 data-60d="{{ trade.return_60d }}"
+                 data-90d="{{ trade.return_90d }}"
+                 data-180d="{{ trade.return_180d }}"
+                 data-365d="{{ trade.return_365d }}">
+                {% if trade.return_20d and trade.return_20d > 0 %}+{% endif %}{{ trade.return_20d|default('--', true) }}{% if trade.return_20d %}%{% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if results.worst_trades %}
+    <div class="card">
+        <div class="card-header" id="worstTradesHeader">Worst 10 Trades (<span class="period-label">20-Day</span> Return)</div>
+        {% for trade in results.worst_trades %}
+        <a href="/stock/{{ trade.symbol }}" class="trade-item">
+            <div class="trade-info">
+                <div class="trade-symbol">
+                    {{ trade.symbol }}.TO
+                    <span class="trade-tier {{ trade.tier|lower }}">{{ trade.tier }}</span>
+                </div>
+                <div class="trade-meta">{{ trade.date }}</div>
+                <div class="trade-indicators">{{ trade.indicators|join(', ') }}</div>
+            </div>
+            <div class="trade-return negative trade-return-value"
+                 data-5d="{{ trade.return_5d }}"
+                 data-10d="{{ trade.return_10d }}"
+                 data-20d="{{ trade.return_20d }}"
+                 data-30d="{{ trade.return_30d }}"
+                 data-60d="{{ trade.return_60d }}"
+                 data-90d="{{ trade.return_90d }}"
+                 data-180d="{{ trade.return_180d }}"
+                 data-365d="{{ trade.return_365d }}">
+                {{ trade.return_20d|default('--', true) }}{% if trade.return_20d %}%{% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="last-run">
+        Last backtest: {{ results.run_timestamp[:19] | replace('T', ' ') }}
+    </div>
+
+    {% else %}
+
+    <div class="empty-state">
+        <div class="icon">📊</div>
+        <div class="title">No backtest results</div>
+        <div>Run a backtest to compare Gold, Silver, and Single indicator performance over 1 year</div>
+    </div>
+
+    {% endif %}
+
+    <script>
+        let pollInterval;
+        let selectedIndicators = ['RSI', 'MACD', 'SlowSto', 'BB', 'OBV', 'ADX', 'WilliamsR', 'P&F'];
+        const defaultIndicators = ['RSI', 'MACD', 'SlowSto', 'P&F'];
+        const allIndicators = ['RSI', 'MACD', 'SlowSto', 'BB', 'OBV', 'ADX', 'WilliamsR', 'P&F'];
+
+        // Signal data for period-based filtering
+        const goldSignalsList = {{ results.gold_signals_list | default([]) | tojson }};
+        const silverSignalsList = {{ results.silver_signals_list | default([]) | tojson }};
+
+        function filterSignalsByPeriod(signals, days) {
+            const returnKey = 'return_' + days + 'd';
+            return signals.filter(s => s[returnKey] !== null && s[returnKey] !== undefined);
+        }
+
+        function aggregateStocksByPeriod(signals, days) {
+            const filtered = filterSignalsByPeriod(signals, days);
+            const stocks = {};
+            filtered.forEach(s => {
+                if (!stocks[s.symbol]) {
+                    stocks[s.symbol] = { symbol: s.symbol, buy_signals: 0, sell_signals: 0 };
+                }
+                if (s.signal_type === 'BUY') {
+                    stocks[s.symbol].buy_signals++;
+                } else {
+                    stocks[s.symbol].sell_signals++;
+                }
+            });
+            return Object.values(stocks);
+        }
+
+        function renderStocksFound(containerId, stocks) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const listEl = container.querySelector('.stocks-found-list');
+            if (!listEl) return;
+
+            if (stocks.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'block';
+            listEl.innerHTML = stocks.map(stock => {
+                let badges = '';
+                if (stock.buy_signals > 0) {
+                    badges += `<span class="buy-badge">${stock.buy_signals}B</span>`;
+                }
+                if (stock.sell_signals > 0) {
+                    badges += `<span class="sell-badge">${stock.sell_signals}S</span>`;
+                }
+                return `<a href="/stock/${stock.symbol}" class="stock-chip">${stock.symbol}${badges}</a>`;
+            }).join('');
+        }
+
+        function updateSignalCounts(days) {
+            // Update gold signal count in header
+            const goldFiltered = filterSignalsByPeriod(goldSignalsList, days);
+            const goldHeader = document.querySelector('.tier-header.gold span:last-child');
+            if (goldHeader) {
+                goldHeader.textContent = goldFiltered.length + ' signals';
+            }
+
+            // Update silver signal count in header
+            const silverFiltered = filterSignalsByPeriod(silverSignalsList, days);
+            const silverHeader = document.querySelector('.tier-header.silver span:last-child');
+            if (silverHeader) {
+                silverHeader.textContent = silverFiltered.length + ' signals';
+            }
+
+            // Update stocks found sections
+            const goldStocks = aggregateStocksByPeriod(goldSignalsList, days);
+            const silverStocks = aggregateStocksByPeriod(silverSignalsList, days);
+            renderStocksFound('goldStocksFound', goldStocks);
+            renderStocksFound('silverStocksFound', silverStocks);
+        }
+
+        function updateIndicatorCount() {
+            document.getElementById('indicatorCount').textContent = selectedIndicators.length;
+        }
+
+        function toggleIndicatorPanel() {
+            document.getElementById('indicatorPanel').classList.toggle('expanded');
+        }
+
+        function toggleIndicator(element) {
+            const indicator = element.dataset.indicator;
+            if (element.classList.contains('selected')) {
+                if (selectedIndicators.length > 1) {
+                    element.classList.remove('selected');
+                    selectedIndicators = selectedIndicators.filter(i => i !== indicator);
+                }
+            } else {
+                element.classList.add('selected');
+                selectedIndicators.push(indicator);
+            }
+            updateIndicatorCount();
+        }
+
+        function resetIndicators() {
+            selectedIndicators = [...defaultIndicators];
+            document.querySelectorAll('.indicator-item').forEach(el => {
+                if (defaultIndicators.includes(el.dataset.indicator)) {
+                    el.classList.add('selected');
+                } else {
+                    el.classList.remove('selected');
+                }
+            });
+            updateIndicatorCount();
+        }
+
+        function selectAllIndicators() {
+            selectedIndicators = [...allIndicators];
+            document.querySelectorAll('.indicator-item').forEach(el => {
+                el.classList.add('selected');
+            });
+            updateIndicatorCount();
+        }
+
+        function startBacktest() {
+            if (selectedIndicators.length === 0) {
+                alert('Please select at least one indicator');
+                return;
+            }
+
+            const btn = document.getElementById('runBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            btn.disabled = true;
+            btn.textContent = 'Running...';
+            stopBtn.style.display = 'block';
+            document.getElementById('progressBar').classList.add('active');
+
+            fetch('/api/backtest/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ indicators: selectedIndicators })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'started' || data.status === 'already_running') {
+                        pollProgress();
+                    }
+                });
+        }
+
+        function stopBacktest() {
+            const stopBtn = document.getElementById('stopBtn');
+            stopBtn.disabled = true;
+            stopBtn.textContent = 'Stopping...';
+
+            fetch('/api/backtest/stop', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    console.log('Stop requested:', data.status);
+                });
+        }
+
+        function pollProgress() {
+            pollInterval = setInterval(() => {
+                fetch('/api/backtest/status')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.is_running) {
+                            const pct = data.total > 0 ? (data.progress / data.total * 100) : 0;
+                            document.getElementById('progressFill').style.width = pct + '%';
+                            document.getElementById('progressText').textContent =
+                                `Analyzing ${data.progress}/${data.total} symbols...`;
+                        } else {
+                            clearInterval(pollInterval);
+                            if (data.error) {
+                                alert('Backtest error: ' + data.error);
+                            }
+                            location.reload();
+                        }
+                    });
+            }, 1000);
+        }
+
+        function switchPeriod(days) {
+            // Update active tab
+            document.querySelectorAll('.period-tab').forEach(t => {
+                t.classList.remove('active');
+                if (parseInt(t.dataset.period) === days) {
+                    t.classList.add('active');
+                }
+            });
+
+            // Update period labels in headers
+            const periodLabel = days === 365 ? '1-Year' : days + '-Day';
+            document.querySelectorAll('.period-label').forEach(el => {
+                el.textContent = periodLabel;
+            });
+
+            // Update all stat values
+            document.querySelectorAll('.stat-value[data-' + days + 'd]').forEach(el => {
+                const value = el.dataset[days + 'd'];
+                const label = el.closest('.stat-box').querySelector('.stat-label').textContent.trim().toUpperCase();
+
+                if (value && value !== 'None' && value !== 'null' && value !== '') {
+                    const numVal = parseFloat(value);
+
+                    // Format display
+                    if (label === 'WIN RATE' || label === 'AVG RETURN') {
+                        el.textContent = numVal.toFixed(1) + '%';
+                    } else if (label === 'PROFIT FACTOR') {
+                        el.textContent = numVal.toFixed(2);
+                    } else {
+                        el.textContent = value;
+                    }
+
+                    // Update color classes
+                    el.classList.remove('positive', 'negative', 'neutral');
+                    if (label === 'WIN RATE') {
+                        el.classList.add(numVal > 50 ? 'positive' : numVal < 50 ? 'negative' : 'neutral');
+                    } else if (label === 'AVG RETURN') {
+                        // Check if sell signal
+                        const isSellRow = el.closest('.tier-row')?.querySelector('.signal-type.sell');
+                        if (isSellRow) {
+                            el.classList.add(numVal < 0 ? 'positive' : numVal > 0 ? 'negative' : 'neutral');
+                        } else {
+                            el.classList.add(numVal > 0 ? 'positive' : numVal < 0 ? 'negative' : 'neutral');
+                        }
+                    } else if (label === 'PROFIT FACTOR') {
+                        el.classList.add(numVal > 1 ? 'positive' : numVal < 1 ? 'negative' : 'neutral');
+                    } else {
+                        el.classList.add('neutral');
+                    }
+                } else {
+                    el.textContent = '--';
+                    el.classList.remove('positive', 'negative');
+                    el.classList.add('neutral');
+                }
+            });
+
+            // Update trade return values
+            document.querySelectorAll('.trade-return-value').forEach(el => {
+                const value = el.dataset[days + 'd'];
+
+                if (value && value !== 'None' && value !== 'null' && value !== '') {
+                    const numVal = parseFloat(value);
+                    const isPositive = numVal > 0;
+
+                    // Format with sign
+                    el.textContent = (isPositive ? '+' : '') + numVal.toFixed(1) + '%';
+
+                    // Update color classes
+                    el.classList.remove('positive', 'negative');
+                    el.classList.add(isPositive ? 'positive' : 'negative');
+                } else {
+                    el.textContent = '--';
+                    el.classList.remove('positive', 'negative');
+                }
+            });
+
+            // Update signal counts and stocks lists based on period filter
+            updateSignalCounts(days);
+        }
+
+        // Initialize with default period on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSignalCounts(20);
+        });
+
+        // Check if backtest is already running on page load
+        {% if is_running %}
+        pollProgress();
+        {% endif %}
+    </script>
+</body>
+</html>

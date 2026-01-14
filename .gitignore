@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Logs
+*.log
+logs/
+
+# Local data
+data/
+*.json
+!railway.json
+!static/manifest.json
+
+# Local tools
+ngrok
+
+# OS
+.DS_Store

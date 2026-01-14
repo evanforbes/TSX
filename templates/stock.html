@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+    <title>{{ symbol }}.TO - Auction House</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            -webkit-text-size-adjust: 100%;
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+        }
+
+        a { color: inherit; text-decoration: none; }
+
+        .header {
+            background: #000;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-bottom: 1px solid #222;
+            position: sticky;
+            top: 0;
+        }
+
+        .back-btn {
+            color: #0A84FF;
+            font-size: 17px;
+            font-weight: 400;
+        }
+
+        .header-info {
+            flex: 1;
+        }
+
+        .header-info h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .header-info .price {
+            font-size: 14px;
+            color: #8E8E93;
+            margin-top: 2px;
+        }
+
+        .watchlist-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+            touch-action: manipulation;
+        }
+        .watchlist-btn.active {
+            color: #FFD60A;
+        }
+        .watchlist-btn:not(.active) {
+            opacity: 0.4;
+        }
+
+        .tier-badge {
+            padding: 12px 20px;
+            margin: 16px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .tier-badge.gold {
+            background: linear-gradient(135deg, #FFD60A 0%, #FFCC00 100%);
+            color: #000;
+        }
+
+        .tier-badge.silver {
+            background: linear-gradient(135deg, #98989D 0%, #8E8E93 100%);
+            color: #000;
+        }
+
+        .card {
+            background: #111;
+            margin: 16px;
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .card h2 {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #8E8E93;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .indicator-section {
+            border-bottom: 1px solid #222;
+        }
+
+        .indicator-section:last-child {
+            border-bottom: none;
+        }
+
+        .indicator-row {
+            display: flex;
+            align-items: center;
+            padding: 14px 0;
+            cursor: pointer;
+            touch-action: manipulation;
+            gap: 12px;
+        }
+
+        .indicator-section:active .indicator-row {
+            opacity: 0.8;
+        }
+
+        .indicator-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .indicator-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .indicator-desc {
+            font-size: 13px;
+            color: #8E8E93;
+            margin-top: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .indicator-value {
+            font-weight: 600;
+            font-size: 17px;
+            text-align: right;
+            min-width: 60px;
+            flex-shrink: 0;
+        }
+
+        .indicator-arrow {
+            font-size: 10px;
+            color: #666;
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+
+        .indicator-section.expanded .indicator-arrow {
+            transform: rotate(180deg);
+        }
+
+        .indicator-value.buy { color: #00C805; }
+        .indicator-value.sell { color: #FF3B30; }
+        .indicator-value.neutral { color: #8E8E93; }
+
+        .indicator-chart {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            background: #0a0a0a;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .indicator-section.expanded .indicator-chart {
+            max-height: 250px;
+        }
+
+        .indicator-chart-widget {
+            height: 200px;
+            width: 100%;
+        }
+
+        .pf-summary {
+            padding: 20px;
+        }
+
+        .pf-trend {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .pf-trend-icon {
+            font-size: 48px;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .pf-trend-icon.bullish {
+            background: rgba(0, 200, 5, 0.2);
+            color: #00C805;
+        }
+
+        .pf-trend-icon.bearish {
+            background: rgba(255, 59, 48, 0.2);
+            color: #FF3B30;
+        }
+
+        .pf-trend-text {
+            text-align: left;
+        }
+
+        .pf-trend-label {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .pf-trend-desc {
+            font-size: 13px;
+            color: #8E8E93;
+            margin-top: 4px;
+        }
+
+        .pf-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .pf-stat {
+            background: #1c1c1e;
+            padding: 14px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .pf-stat-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .pf-stat-value.up { color: #00C805; }
+        .pf-stat-value.down { color: #FF3B30; }
+
+        .pf-stat-label {
+            font-size: 11px;
+            color: #8E8E93;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .pf-breakout {
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(0, 200, 5, 0.15);
+            border: 1px solid #00C805;
+            border-radius: 10px;
+            text-align: center;
+            color: #00C805;
+            font-weight: 600;
+        }
+
+        .pf-link {
+            display: block;
+            text-align: center;
+            margin-top: 15px;
+            color: #0A84FF;
+            font-size: 14px;
+        }
+
+        .signal-card {
+            background: rgba(0,200,5,0.1);
+            border-left: 3px solid #00C805;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            border-radius: 0 12px 12px 0;
+        }
+
+        .signal-card.sell {
+            background: rgba(255,59,48,0.1);
+            border-left-color: #FF3B30;
+        }
+
+        .signal-card .indicator {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .signal-card .description {
+            font-size: 14px;
+            color: #8E8E93;
+            margin-top: 4px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 16px;
+            background: #1c1c1e;
+            border-radius: 12px;
+        }
+
+        .stat-item .value {
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        .stat-item .label {
+            font-size: 12px;
+            color: #8E8E93;
+            text-transform: uppercase;
+            margin-top: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .no-signals {
+            text-align: center;
+            padding: 24px;
+            color: #8E8E93;
+            font-size: 15px;
+        }
+
+        .chart-container {
+            background: #111;
+            margin: 16px;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .chart-header {
+            padding: 16px 20px 0;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #8E8E93;
+            font-weight: 600;
+        }
+
+        .chart-widget {
+            height: 300px;
+            width: 100%;
+        }
+
+        .yahoo-link {
+            display: block;
+            background: #0A84FF;
+            color: #fff;
+            text-align: center;
+            padding: 16px;
+            margin: 16px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            touch-action: manipulation;
+            transition: transform 0.1s, opacity 0.1s;
+        }
+
+        .yahoo-link:active {
+            opacity: 0.8;
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/" class="back-btn">← Back</a>
+        <div class="header-info">
+            <h1>{{ symbol }}.TO</h1>
+            <div class="price">${{ "%.2f"|format(price) }} • Vol: {{ "{:,.0f}".format(volume) }}</div>
+        </div>
+        <button class="watchlist-btn {{ 'active' if in_watchlist else '' }}" onclick="toggleWatchlist()" id="watchlistBtn">
+            ★
+        </button>
+    </div>
+
+    {% if result.tier.tier_buy == 'GOLD' %}
+    <div class="tier-badge gold">GOLD STANDARD BUY • {{ result.tier.buy_count }} Signals</div>
+    {% elif result.tier.tier_sell == 'GOLD' %}
+    <div class="tier-badge gold">GOLD STANDARD SELL • {{ result.tier.sell_count }} Signals</div>
+    {% elif result.tier.tier_buy == 'SILVER' %}
+    <div class="tier-badge silver">SILVER STANDARD BUY • {{ result.tier.buy_count }} Signals</div>
+    {% elif result.tier.tier_sell == 'SILVER' %}
+    <div class="tier-badge silver">SILVER STANDARD SELL • {{ result.tier.sell_count }} Signals</div>
+    {% endif %}
+
+    <div class="chart-container">
+        <div class="chart-header">Price Chart</div>
+        <div class="chart-widget">
+            <!-- TradingView Widget -->
+            <div class="tradingview-widget-container" style="height:100%;width:100%">
+                <div id="tradingview_chart" style="height:100%;width:100%"></div>
+            </div>
+            <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+            <script type="text/javascript">
+                new TradingView.widget({
+                    "autosize": true,
+                    "symbol": "TSX:{{ symbol }}",
+                    "interval": "D",
+                    "timezone": "America/Toronto",
+                    "theme": "dark",
+                    "style": "1",
+                    "locale": "en",
+                    "toolbar_bg": "#111111",
+                    "enable_publishing": false,
+                    "hide_top_toolbar": true,
+                    "hide_legend": true,
+                    "save_image": false,
+                    "container_id": "tradingview_chart",
+                    "hide_volume": true
+                });
+            </script>
+        </div>
+    </div>
+
+    {% if result.signals %}
+    <div class="card">
+        <h2>Active Signals</h2>
+        {% for indicator, signal, desc in result.signals %}
+        <div class="signal-card {{ 'sell' if signal == 'SELL' else '' }}">
+            <div class="indicator">{{ signal }} • {{ indicator }}</div>
+            <div class="description">{{ desc }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card">
+        <h2>Active Signals</h2>
+        <div class="no-signals">No active signals</div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <h2>Technical Indicators</h2>
+
+        <div class="indicator-section" onclick="toggleIndicator(this, 'rsi')">
+            <div class="indicator-row">
+                <div class="indicator-info">
+                    <div class="indicator-name">RSI (14)</div>
+                    <div class="indicator-desc">{{ result.rsi.description }}</div>
+                </div>
+                <div class="indicator-value {{ 'buy' if result.rsi.signal in ['BUY', 'STRONG_BUY'] else 'sell' if result.rsi.signal == 'SELL' else 'neutral' }}">
+                    {{ "%.1f"|format(result.rsi.rsi_value) if result.rsi.rsi_value else 'N/A' }}
+                </div>
+                <span class="indicator-arrow">▼</span>
+            </div>
+            <div class="indicator-chart">
+                <div id="rsi_chart" class="indicator-chart-widget"></div>
+            </div>
+        </div>
+
+        <div class="indicator-section" onclick="toggleIndicator(this, 'macd')">
+            <div class="indicator-row">
+                <div class="indicator-info">
+                    <div class="indicator-name">MACD Histogram</div>
+                    <div class="indicator-desc">{{ result.macd.description }}</div>
+                </div>
+                <div class="indicator-value {{ 'buy' if result.macd.signal == 'BUY' else 'sell' if result.macd.signal == 'SELL' else 'neutral' }}">
+                    {{ "%.4f"|format(result.macd.histogram_value) if result.macd.histogram_value else 'N/A' }}
+                </div>
+                <span class="indicator-arrow">▼</span>
+            </div>
+            <div class="indicator-chart">
+                <div id="macd_chart" class="indicator-chart-widget"></div>
+            </div>
+        </div>
+
+        <div class="indicator-section" onclick="toggleIndicator(this, 'stoch')">
+            <div class="indicator-row">
+                <div class="indicator-info">
+                    <div class="indicator-name">Slow STO</div>
+                    <div class="indicator-desc">{{ result.stochastic.description }}</div>
+                </div>
+                <div class="indicator-value {{ 'buy' if result.stochastic.signal == 'BUY' else 'sell' if result.stochastic.signal == 'SELL' else 'neutral' }}">
+                    {{ "%.1f"|format(result.stochastic.k_value) if result.stochastic.k_value else 'N/A' }}
+                </div>
+                <span class="indicator-arrow">▼</span>
+            </div>
+            <div class="indicator-chart">
+                <div id="stoch_chart" class="indicator-chart-widget"></div>
+            </div>
+        </div>
+
+        <div class="indicator-section" onclick="toggleIndicator(this, 'pf')">
+            <div class="indicator-row">
+                <div class="indicator-info">
+                    <div class="indicator-name">Point & Figure</div>
+                    <div class="indicator-desc">
+                        {% if result.pf.triple_top_breakout %}
+                        Triple Top Breakout!
+                        {% else %}
+                        Direction: {{ result.pf.current_direction or 'N/A' }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="indicator-value {{ 'buy' if result.pf.triple_top_breakout else 'neutral' }}">
+                    {{ 'BUY' if result.pf.triple_top_breakout else result.pf.current_direction or '—' }}
+                </div>
+                <span class="indicator-arrow">▼</span>
+            </div>
+            <div class="indicator-chart">
+                <div class="pf-summary">
+                    {% set x_cols = result.pf.columns | selectattr('direction', 'equalto', 'X') | list | length %}
+                    {% set o_cols = result.pf.columns | selectattr('direction', 'equalto', 'O') | list | length %}
+
+                    <div class="pf-trend">
+                        <div class="pf-trend-icon {{ 'bullish' if result.pf.current_direction == 'X' else 'bearish' }}">
+                            {{ result.pf.current_direction or '—' }}
+                        </div>
+                        <div class="pf-trend-text">
+                            <div class="pf-trend-label">
+                                {% if result.pf.current_direction == 'X' %}
+                                Bullish Trend
+                                {% elif result.pf.current_direction == 'O' %}
+                                Bearish Trend
+                                {% else %}
+                                No Clear Trend
+                                {% endif %}
+                            </div>
+                            <div class="pf-trend-desc">
+                                Currently in {{ result.pf.current_direction or 'N/A' }} column
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pf-stats">
+                        <div class="pf-stat">
+                            <div class="pf-stat-value up">{{ x_cols }}</div>
+                            <div class="pf-stat-label">Rising (X) Columns</div>
+                        </div>
+                        <div class="pf-stat">
+                            <div class="pf-stat-value down">{{ o_cols }}</div>
+                            <div class="pf-stat-label">Falling (O) Columns</div>
+                        </div>
+                    </div>
+
+                    {% if result.pf.triple_top_breakout %}
+                    <div class="pf-breakout">
+                        Triple Top Breakout Detected - Buy Signal
+                    </div>
+                    {% endif %}
+
+                    <a href="https://stockcharts.com/h-sc/ui?s={{ symbol }}.TO&p=D&yr=0&mn=6&dy=0&id=p28498881973" target="_blank" class="pf-link">
+                        View Full P&F Chart on StockCharts
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const symbol = "{{ symbol }}";
+        const loadedCharts = {};
+        let inWatchlist = {{ 'true' if in_watchlist else 'false' }};
+
+        function toggleWatchlist() {
+            const btn = document.getElementById('watchlistBtn');
+            const endpoint = inWatchlist ? '/api/watchlist/remove' : '/api/watchlist/add';
+
+            fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: symbol })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    inWatchlist = !inWatchlist;
+                    btn.classList.toggle('active', inWatchlist);
+                }
+            });
+        }
+
+        function toggleIndicator(section, type) {
+            const wasExpanded = section.classList.contains('expanded');
+            section.classList.toggle('expanded');
+
+            if (!wasExpanded && !loadedCharts[type]) {
+                loadIndicatorChart(type);
+                loadedCharts[type] = true;
+            }
+        }
+
+        function loadIndicatorChart(type) {
+            let studies = [];
+            let containerId = type + '_chart';
+
+            if (type === 'rsi') {
+                studies = [{ id: "RSI@tv-basicstudies", inputs: { length: 14 } }];
+            } else if (type === 'macd') {
+                studies = [{ id: "MACD@tv-basicstudies" }];
+            } else if (type === 'stoch') {
+                studies = [{ id: "Stochastic@tv-basicstudies" }];
+            } else {
+                return;
+            }
+
+            new TradingView.widget({
+                "autosize": true,
+                "symbol": "TSX:" + symbol,
+                "interval": "D",
+                "timezone": "America/Toronto",
+                "theme": "dark",
+                "style": "1",
+                "locale": "en",
+                "toolbar_bg": "#0a0a0a",
+                "enable_publishing": false,
+                "hide_top_toolbar": true,
+                "hide_legend": false,
+                "save_image": false,
+                "container_id": containerId,
+                "studies": studies,
+                "hide_volume": true
+            });
+        }
+    </script>
+
+    <div class="card">
+        <h2>Signal Summary</h2>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="value" style="color: #00C805">{{ result.tier.buy_count }}</div>
+                <div class="label">Buy Signals</div>
+            </div>
+            <div class="stat-item">
+                <div class="value" style="color: #FF3B30">{{ result.tier.sell_count }}</div>
+                <div class="label">Sell Signals</div>
+            </div>
+        </div>
+    </div>
+
+    <a href="https://finance.yahoo.com/quote/{{ symbol }}.TO" target="_blank" class="yahoo-link">
+        View on Yahoo Finance
+    </a>
+</body>
+</html>
