@@ -29,7 +29,8 @@ from config import (
     SCAN_MODE, CUSTOM_SYMBOLS, DEFAULT_TSX_SYMBOLS,
     MIN_PRICE, MIN_VOLUME, LOOKBACK_DAYS,
     DIAMOND_STANDARD_MIN_SIGNALS, GOLD_STANDARD_MIN_SIGNALS, SILVER_STANDARD_MIN_SIGNALS,
-    DEFAULT_INDICATORS, ALL_INDICATORS
+    DEFAULT_INDICATORS, ALL_INDICATORS,
+    ALPHA_VANTAGE_API_KEY
 )
 from indicators import (
     calculate_rsi, calculate_macd, calculate_slow_stochastic,
@@ -122,6 +123,41 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
                     return df
     except Exception as e:
         print(f"[DEBUG] Method 3 failed for {tsx_symbol}: {e}")
+
+    # Method 4: Alpha Vantage API (backup)
+    if ALPHA_VANTAGE_API_KEY:
+        try:
+            # Alpha Vantage uses symbol.TRT for TSX stocks
+            av_symbol = f"{symbol}.TRT"
+            url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={av_symbol}&outputsize=full&apikey={ALPHA_VANTAGE_API_KEY}"
+
+            response = session.get(url, timeout=20)
+            if response.status_code == 200:
+                data = response.json()
+                time_series = data.get('Time Series (Daily)', {})
+
+                if time_series:
+                    rows = []
+                    for date_str, values in time_series.items():
+                        rows.append({
+                            'Date': pd.to_datetime(date_str),
+                            'Open': float(values['1. open']),
+                            'High': float(values['2. high']),
+                            'Low': float(values['3. low']),
+                            'Close': float(values['4. close']),
+                            'Volume': int(values['5. volume'])
+                        })
+
+                    df = pd.DataFrame(rows)
+                    df.set_index('Date', inplace=True)
+                    df.sort_index(inplace=True)
+                    df = df.tail(days)  # Keep only requested days
+
+                    if not df.empty:
+                        print(f"[DEBUG] Alpha Vantage success for {symbol}")
+                        return df
+        except Exception as e:
+            print(f"[DEBUG] Method 4 (Alpha Vantage) failed for {symbol}: {e}")
 
     print(f"[DEBUG] All methods failed for {tsx_symbol}")
     return None
