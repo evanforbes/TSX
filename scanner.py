@@ -67,71 +67,71 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
     """
     # Handle TSX symbol formatting
     tsx_symbol = f"{symbol}.TO"
-
-    # Try multiple methods
     df = None
 
-    # Method 1: yf.download with session
-    try:
-        df = yf.download(
-            tsx_symbol,
-            period=f"{days}d",
-            progress=False,
-            timeout=15,
-            session=session
-        )
-        if df is not None and not df.empty:
-            return df
-    except Exception as e:
-        print(f"[DEBUG] Method 1 failed for {tsx_symbol}: {e}")
-
-    # Method 2: Ticker.history with session
-    try:
-        ticker = yf.Ticker(tsx_symbol, session=session)
-        df = ticker.history(period=f"{days}d")
-        if df is not None and not df.empty:
-            return df
-    except Exception as e:
-        print(f"[DEBUG] Method 2 failed for {tsx_symbol}: {e}")
-
-    # Method 3: Direct API call to Yahoo Finance
+    # Method 1: Direct API call to Yahoo Finance (most reliable on cloud)
     try:
         end_ts = int(datetime.now().timestamp())
         start_ts = int((datetime.now() - timedelta(days=days)).timestamp())
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{tsx_symbol}?period1={start_ts}&period2={end_ts}&interval=1d"
 
-        response = session.get(url, timeout=15)
+        response = session.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json()
             result = data.get('chart', {}).get('result', [])
             if result:
                 quotes = result[0]
                 timestamps = quotes.get('timestamp', [])
-                ohlcv = quotes.get('indicators', {}).get('quote', [{}])[0]
-                adj_close = quotes.get('indicators', {}).get('adjclose', [{}])[0].get('adjclose', ohlcv.get('close', []))
+                if timestamps:
+                    ohlcv = quotes.get('indicators', {}).get('quote', [{}])[0]
+                    adj_close_data = quotes.get('indicators', {}).get('adjclose', [{}])
+                    adj_close = adj_close_data[0].get('adjclose', ohlcv.get('close', [])) if adj_close_data else ohlcv.get('close', [])
 
-                df = pd.DataFrame({
-                    'Open': ohlcv.get('open', []),
-                    'High': ohlcv.get('high', []),
-                    'Low': ohlcv.get('low', []),
-                    'Close': ohlcv.get('close', []),
-                    'Adj Close': adj_close,
-                    'Volume': ohlcv.get('volume', [])
-                }, index=pd.to_datetime(timestamps, unit='s'))
+                    df = pd.DataFrame({
+                        'Open': ohlcv.get('open', []),
+                        'High': ohlcv.get('high', []),
+                        'Low': ohlcv.get('low', []),
+                        'Close': ohlcv.get('close', []),
+                        'Adj Close': adj_close,
+                        'Volume': ohlcv.get('volume', [])
+                    }, index=pd.to_datetime(timestamps, unit='s'))
 
-                if not df.empty:
-                    return df
+                    if not df.empty:
+                        return df
     except Exception as e:
-        print(f"[DEBUG] Method 3 failed for {tsx_symbol}: {e}")
+        print(f"[DEBUG] Direct Yahoo API failed for {tsx_symbol}: {e}")
 
-    # Method 4: Alpha Vantage API (backup)
+    # Method 2: yf.download with session
+    try:
+        df = yf.download(
+            tsx_symbol,
+            period=f"{days}d",
+            progress=False,
+            timeout=10,
+            session=session
+        )
+        if df is not None and not df.empty:
+            return df
+    except Exception as e:
+        print(f"[DEBUG] yf.download failed for {tsx_symbol}: {e}")
+
+    # Method 3: Ticker.history with session
+    try:
+        ticker = yf.Ticker(tsx_symbol, session=session)
+        df = ticker.history(period=f"{days}d")
+        if df is not None and not df.empty:
+            return df
+    except Exception as e:
+        print(f"[DEBUG] Ticker.history failed for {tsx_symbol}: {e}")
+
+    # Method 4: Alpha Vantage API (only for individual lookups, not bulk scans)
+    # Note: Free tier limited to 25 requests/day
     if ALPHA_VANTAGE_API_KEY:
         try:
-            # Alpha Vantage uses symbol.TRT for TSX stocks
             av_symbol = f"{symbol}.TRT"
-            url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={av_symbol}&outputsize=full&apikey={ALPHA_VANTAGE_API_KEY}"
+            url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={av_symbol}&outputsize=compact&apikey={ALPHA_VANTAGE_API_KEY}"
 
-            response = session.get(url, timeout=20)
+            response = session.get(url, timeout=15)
             if response.status_code == 200:
                 data = response.json()
                 time_series = data.get('Time Series (Daily)', {})
@@ -151,13 +151,13 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
                     df = pd.DataFrame(rows)
                     df.set_index('Date', inplace=True)
                     df.sort_index(inplace=True)
-                    df = df.tail(days)  # Keep only requested days
+                    df = df.tail(days)
 
                     if not df.empty:
                         print(f"[DEBUG] Alpha Vantage success for {symbol}")
                         return df
         except Exception as e:
-            print(f"[DEBUG] Method 4 (Alpha Vantage) failed for {symbol}: {e}")
+            print(f"[DEBUG] Alpha Vantage failed for {symbol}: {e}")
 
     print(f"[DEBUG] All methods failed for {tsx_symbol}")
     return None
