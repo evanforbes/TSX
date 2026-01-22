@@ -30,7 +30,7 @@ from config import (
     MIN_PRICE, MIN_VOLUME, LOOKBACK_DAYS,
     DIAMOND_STANDARD_MIN_SIGNALS, GOLD_STANDARD_MIN_SIGNALS, SILVER_STANDARD_MIN_SIGNALS,
     DEFAULT_INDICATORS, ALL_INDICATORS,
-    ALPHA_VANTAGE_API_KEY
+    ALPHA_VANTAGE_API_KEY, TWELVE_DATA_API_KEY
 )
 from indicators import (
     calculate_rsi, calculate_macd, calculate_slow_stochastic,
@@ -65,11 +65,43 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
     Returns:
         DataFrame with OHLCV data or None if failed
     """
-    # Handle TSX symbol formatting
     tsx_symbol = f"{symbol}.TO"
     df = None
 
-    # Method 1: Direct API call to Yahoo Finance (most reliable on cloud)
+    # Method 1: Twelve Data API (PRIMARY - 800 calls/day free)
+    if TWELVE_DATA_API_KEY:
+        try:
+            # Twelve Data uses symbol:TSX format for Toronto stocks
+            td_symbol = f"{symbol}:TSX"
+            url = f"https://api.twelvedata.com/time_series?symbol={td_symbol}&interval=1day&outputsize={days}&apikey={TWELVE_DATA_API_KEY}"
+
+            response = session.get(url, timeout=15)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('status') == 'ok' or 'values' in data:
+                    values = data.get('values', [])
+                    if values:
+                        rows = []
+                        for v in values:
+                            rows.append({
+                                'Date': pd.to_datetime(v['datetime']),
+                                'Open': float(v['open']),
+                                'High': float(v['high']),
+                                'Low': float(v['low']),
+                                'Close': float(v['close']),
+                                'Volume': int(v['volume']) if v.get('volume') else 0
+                            })
+
+                        df = pd.DataFrame(rows)
+                        df.set_index('Date', inplace=True)
+                        df.sort_index(inplace=True)
+
+                        if not df.empty:
+                            return df
+        except Exception as e:
+            print(f"[DEBUG] Twelve Data failed for {symbol}: {e}")
+
+    # Method 2: Direct Yahoo Finance API (backup)
     try:
         end_ts = int(datetime.now().timestamp())
         start_ts = int((datetime.now() - timedelta(days=days)).timestamp())
@@ -99,33 +131,17 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
                     if not df.empty:
                         return df
     except Exception as e:
-        print(f"[DEBUG] Direct Yahoo API failed for {tsx_symbol}: {e}")
+        print(f"[DEBUG] Yahoo API failed for {tsx_symbol}: {e}")
 
-    # Method 2: yf.download with session
+    # Method 3: yfinance library (backup)
     try:
-        df = yf.download(
-            tsx_symbol,
-            period=f"{days}d",
-            progress=False,
-            timeout=10,
-            session=session
-        )
+        df = yf.download(tsx_symbol, period=f"{days}d", progress=False, timeout=10, session=session)
         if df is not None and not df.empty:
             return df
     except Exception as e:
-        print(f"[DEBUG] yf.download failed for {tsx_symbol}: {e}")
+        print(f"[DEBUG] yfinance failed for {tsx_symbol}: {e}")
 
-    # Method 3: Ticker.history with session
-    try:
-        ticker = yf.Ticker(tsx_symbol, session=session)
-        df = ticker.history(period=f"{days}d")
-        if df is not None and not df.empty:
-            return df
-    except Exception as e:
-        print(f"[DEBUG] Ticker.history failed for {tsx_symbol}: {e}")
-
-    # Method 4: Alpha Vantage API (only for individual lookups, not bulk scans)
-    # Note: Free tier limited to 25 requests/day
+    # Method 4: Alpha Vantage (last resort - only 25/day)
     if ALPHA_VANTAGE_API_KEY:
         try:
             av_symbol = f"{symbol}.TRT"
@@ -154,7 +170,6 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
                     df = df.tail(days)
 
                     if not df.empty:
-                        print(f"[DEBUG] Alpha Vantage success for {symbol}")
                         return df
         except Exception as e:
             print(f"[DEBUG] Alpha Vantage failed for {symbol}: {e}")
