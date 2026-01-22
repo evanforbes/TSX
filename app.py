@@ -316,6 +316,31 @@ def get_results():
     })
 
 
+@app.route('/api/debug/<symbol>')
+def debug_fetch(symbol):
+    """Simple debug endpoint"""
+    from config import TWELVE_DATA_API_KEY
+    symbol = symbol.upper().strip()
+    result = {
+        'symbol': symbol,
+        'twelve_data_key_set': bool(TWELVE_DATA_API_KEY),
+        'twelve_data_key_length': len(TWELVE_DATA_API_KEY) if TWELVE_DATA_API_KEY else 0
+    }
+    try:
+        df = fetch_stock_data(symbol)
+        if df is not None and not df.empty:
+            result['status'] = 'success'
+            result['rows'] = len(df)
+            result['price'] = round(float(df['Close'].iloc[-1]), 2)
+        else:
+            result['status'] = 'failed'
+            result['df_is_none'] = df is None
+    except Exception as e:
+        result['status'] = 'error'
+        result['error'] = str(e)
+    return jsonify(result)
+
+
 @app.route('/stock/<symbol>')
 def stock_detail(symbol):
     """Detailed view for a single stock"""
