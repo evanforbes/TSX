@@ -779,6 +779,16 @@ def test_fetch(symbol):
     return jsonify(result)
 
 
+@app.route('/api/check-config')
+def check_config():
+    """Debug endpoint to check configuration"""
+    from config import TWELVE_DATA_API_KEY
+    return jsonify({
+        'twelve_data_key_set': bool(TWELVE_DATA_API_KEY),
+        'twelve_data_key_length': len(TWELVE_DATA_API_KEY) if TWELVE_DATA_API_KEY else 0
+    })
+
+
 if __name__ == '__main__':
     # Run on all interfaces so it's accessible from phone
     # Using 8080 because 5000 is often used by AirPlay on macOS
