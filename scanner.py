@@ -71,6 +71,9 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
             timeout=15
         )
         if df is not None and not df.empty:
+            # Flatten multi-level columns if present (yfinance returns ('Close', 'SYMBOL') format)
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
             return df
     except Exception as e:
         print(f"[DEBUG] Method 1 failed for {tsx_symbol}: {e}")
