@@ -782,10 +782,12 @@ def test_fetch(symbol):
 @app.route('/api/check-config')
 def check_config():
     """Debug endpoint to check configuration"""
-    from config import TWELVE_DATA_API_KEY
+    import os
+    key = os.environ.get('TWELVE_DATA_API_KEY', '')
     return jsonify({
-        'twelve_data_key_set': bool(TWELVE_DATA_API_KEY),
-        'twelve_data_key_length': len(TWELVE_DATA_API_KEY) if TWELVE_DATA_API_KEY else 0
+        'twelve_data_key_set': bool(key),
+        'twelve_data_key_length': len(key) if key else 0,
+        'env_vars': list(os.environ.keys())
     })
 
 
