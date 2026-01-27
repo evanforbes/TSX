@@ -245,13 +245,17 @@ def start_scan():
 @app.route('/api/status')
 def get_status():
     """Get current scan status"""
+    import os
+    twelve_key = os.environ.get('TWELVE_DATA_API_KEY', '')
     return jsonify({
         'is_scanning': scan_state['is_scanning'],
         'progress': scan_state['progress'],
         'total': scan_state['total'],
         'last_scan': scan_state['last_scan'],
         'results_count': len(scan_state['results']),
-        'error': scan_state['error']
+        'error': scan_state['error'],
+        'twelve_data_key_set': bool(twelve_key),
+        'deploy_version': '4399ad0'
     })
 
 
