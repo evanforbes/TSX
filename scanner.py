@@ -21,7 +21,8 @@ from config import (
     SCAN_MODE, CUSTOM_SYMBOLS, DEFAULT_TSX_SYMBOLS,
     MIN_PRICE, MIN_VOLUME, LOOKBACK_DAYS,
     DIAMOND_STANDARD_MIN_SIGNALS, GOLD_STANDARD_MIN_SIGNALS, SILVER_STANDARD_MIN_SIGNALS,
-    DEFAULT_INDICATORS, ALL_INDICATORS
+    DEFAULT_INDICATORS, ALL_INDICATORS,
+    TWELVE_DATA_API_KEY
 )
 from indicators import (
     calculate_rsi, calculate_macd, calculate_slow_stochastic,
@@ -56,13 +57,39 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
     Returns:
         DataFrame with OHLCV data or None if failed
     """
-    # Handle TSX symbol formatting
     tsx_symbol = f"{symbol}.TO"
-
-    # Try multiple methods
     df = None
 
-    # Method 1: yf.download (let yfinance handle session)
+    # Method 1: Twelve Data API (PRIMARY for cloud - 800 calls/day free)
+    if TWELVE_DATA_API_KEY:
+        try:
+            td_symbol = f"{symbol}:TSX"
+            url = f"https://api.twelvedata.com/time_series?symbol={td_symbol}&interval=1day&outputsize={min(days, 365)}&apikey={TWELVE_DATA_API_KEY}"
+            response = requests.get(url, timeout=15)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('status') == 'ok' or 'values' in data:
+                    values = data.get('values', [])
+                    if values:
+                        rows = []
+                        for v in values:
+                            rows.append({
+                                'Date': pd.to_datetime(v['datetime']),
+                                'Open': float(v['open']),
+                                'High': float(v['high']),
+                                'Low': float(v['low']),
+                                'Close': float(v['close']),
+                                'Volume': int(v['volume']) if v.get('volume') else 0
+                            })
+                        df = pd.DataFrame(rows)
+                        df.set_index('Date', inplace=True)
+                        df.sort_index(inplace=True)
+                        if not df.empty:
+                            return df
+        except Exception as e:
+            print(f"[DEBUG] Twelve Data failed for {symbol}: {e}")
+
+    # Method 2: yf.download (fallback for local)
     try:
         df = yf.download(
             tsx_symbol,
@@ -71,28 +98,18 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
             timeout=15
         )
         if df is not None and not df.empty:
-            # Flatten multi-level columns if present (yfinance returns ('Close', 'SYMBOL') format)
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
             return df
     except Exception as e:
-        print(f"[DEBUG] Method 1 failed for {tsx_symbol}: {e}")
+        print(f"[DEBUG] yfinance failed for {tsx_symbol}: {e}")
 
-    # Method 2: Ticker.history
-    try:
-        ticker = yf.Ticker(tsx_symbol)
-        df = ticker.history(period=f"{days}d")
-        if df is not None and not df.empty:
-            return df
-    except Exception as e:
-        print(f"[DEBUG] Method 2 failed for {tsx_symbol}: {e}")
-
-    # Method 3: Direct API call to Yahoo Finance
+    # Method 3: Direct Yahoo API (fallback)
     try:
         end_ts = int(datetime.now().timestamp())
         start_ts = int((datetime.now() - timedelta(days=days)).timestamp())
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{tsx_symbol}?period1={start_ts}&period2={end_ts}&interval=1d"
-        headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'}
+        headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(url, timeout=15, headers=headers)
         if response.status_code == 200:
             data = response.json()
