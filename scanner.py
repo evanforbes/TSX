@@ -17,14 +17,6 @@ from typing import Optional
 import sys
 import requests
 
-# Configure yfinance to use custom session with browser headers
-session = requests.Session()
-session.headers.update({
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.5',
-})
-
 from config import (
     SCAN_MODE, CUSTOM_SYMBOLS, DEFAULT_TSX_SYMBOLS,
     MIN_PRICE, MIN_VOLUME, LOOKBACK_DAYS,
@@ -70,23 +62,22 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
     # Try multiple methods
     df = None
 
-    # Method 1: yf.download with session
+    # Method 1: yf.download (let yfinance handle session)
     try:
         df = yf.download(
             tsx_symbol,
             period=f"{days}d",
             progress=False,
-            timeout=15,
-            session=session
+            timeout=15
         )
         if df is not None and not df.empty:
             return df
     except Exception as e:
         print(f"[DEBUG] Method 1 failed for {tsx_symbol}: {e}")
 
-    # Method 2: Ticker.history with session
+    # Method 2: Ticker.history
     try:
-        ticker = yf.Ticker(tsx_symbol, session=session)
+        ticker = yf.Ticker(tsx_symbol)
         df = ticker.history(period=f"{days}d")
         if df is not None and not df.empty:
             return df
@@ -98,8 +89,8 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
         end_ts = int(datetime.now().timestamp())
         start_ts = int((datetime.now() - timedelta(days=days)).timestamp())
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{tsx_symbol}?period1={start_ts}&period2={end_ts}&interval=1d"
-
-        response = session.get(url, timeout=15)
+        headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'}
+        response = requests.get(url, timeout=15, headers=headers)
         if response.status_code == 200:
             data = response.json()
             result = data.get('chart', {}).get('result', [])
