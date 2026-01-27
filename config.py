@@ -1,16 +1,4 @@
 # TSX Stock Scanner Configuration
-import os
-
-# =============================================================================
-# API KEYS
-# =============================================================================
-# Alpha Vantage API key (get free key at https://www.alphavantage.co/support/#api-key)
-# Set as environment variable ALPHA_VANTAGE_API_KEY or paste directly below
-ALPHA_VANTAGE_API_KEY = os.environ.get('ALPHA_VANTAGE_API_KEY', '')
-
-# Twelve Data API key (get free key at https://twelvedata.com/ - 800 calls/day)
-# Set as environment variable TWELVE_DATA_API_KEY
-TWELVE_DATA_API_KEY = os.environ.get('TWELVE_DATA_API_KEY', '')
 
 # =============================================================================
 # STOCK UNIVERSE

@@ -29,8 +29,7 @@ from config import (
     SCAN_MODE, CUSTOM_SYMBOLS, DEFAULT_TSX_SYMBOLS,
     MIN_PRICE, MIN_VOLUME, LOOKBACK_DAYS,
     DIAMOND_STANDARD_MIN_SIGNALS, GOLD_STANDARD_MIN_SIGNALS, SILVER_STANDARD_MIN_SIGNALS,
-    DEFAULT_INDICATORS, ALL_INDICATORS,
-    ALPHA_VANTAGE_API_KEY, TWELVE_DATA_API_KEY
+    DEFAULT_INDICATORS, ALL_INDICATORS
 )
 from indicators import (
     calculate_rsi, calculate_macd, calculate_slow_stochastic,
@@ -65,114 +64,64 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
     Returns:
         DataFrame with OHLCV data or None if failed
     """
+    # Handle TSX symbol formatting
     tsx_symbol = f"{symbol}.TO"
+
+    # Try multiple methods
     df = None
 
-    # Method 1: Twelve Data API (PRIMARY - 800 calls/day free)
-    if TWELVE_DATA_API_KEY:
-        try:
-            # Twelve Data uses symbol:TSX format for Toronto stocks
-            td_symbol = f"{symbol}:TSX"
-            url = f"https://api.twelvedata.com/time_series?symbol={td_symbol}&interval=1day&outputsize={days}&apikey={TWELVE_DATA_API_KEY}"
+    # Method 1: yf.download with session
+    try:
+        df = yf.download(
+            tsx_symbol,
+            period=f"{days}d",
+            progress=False,
+            timeout=15,
+            session=session
+        )
+        if df is not None and not df.empty:
+            return df
+    except Exception as e:
+        print(f"[DEBUG] Method 1 failed for {tsx_symbol}: {e}")
 
-            response = session.get(url, timeout=15)
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('status') == 'ok' or 'values' in data:
-                    values = data.get('values', [])
-                    if values:
-                        rows = []
-                        for v in values:
-                            rows.append({
-                                'Date': pd.to_datetime(v['datetime']),
-                                'Open': float(v['open']),
-                                'High': float(v['high']),
-                                'Low': float(v['low']),
-                                'Close': float(v['close']),
-                                'Volume': int(v['volume']) if v.get('volume') else 0
-                            })
+    # Method 2: Ticker.history with session
+    try:
+        ticker = yf.Ticker(tsx_symbol, session=session)
+        df = ticker.history(period=f"{days}d")
+        if df is not None and not df.empty:
+            return df
+    except Exception as e:
+        print(f"[DEBUG] Method 2 failed for {tsx_symbol}: {e}")
 
-                        df = pd.DataFrame(rows)
-                        df.set_index('Date', inplace=True)
-                        df.sort_index(inplace=True)
-
-                        if not df.empty:
-                            return df
-        except Exception as e:
-            print(f"[DEBUG] Twelve Data failed for {symbol}: {e}")
-
-    # Method 2: Direct Yahoo Finance API (backup)
+    # Method 3: Direct API call to Yahoo Finance
     try:
         end_ts = int(datetime.now().timestamp())
         start_ts = int((datetime.now() - timedelta(days=days)).timestamp())
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{tsx_symbol}?period1={start_ts}&period2={end_ts}&interval=1d"
 
-        response = session.get(url, timeout=10)
+        response = session.get(url, timeout=15)
         if response.status_code == 200:
             data = response.json()
             result = data.get('chart', {}).get('result', [])
             if result:
                 quotes = result[0]
                 timestamps = quotes.get('timestamp', [])
-                if timestamps:
-                    ohlcv = quotes.get('indicators', {}).get('quote', [{}])[0]
-                    adj_close_data = quotes.get('indicators', {}).get('adjclose', [{}])
-                    adj_close = adj_close_data[0].get('adjclose', ohlcv.get('close', [])) if adj_close_data else ohlcv.get('close', [])
+                ohlcv = quotes.get('indicators', {}).get('quote', [{}])[0]
+                adj_close = quotes.get('indicators', {}).get('adjclose', [{}])[0].get('adjclose', ohlcv.get('close', []))
 
-                    df = pd.DataFrame({
-                        'Open': ohlcv.get('open', []),
-                        'High': ohlcv.get('high', []),
-                        'Low': ohlcv.get('low', []),
-                        'Close': ohlcv.get('close', []),
-                        'Adj Close': adj_close,
-                        'Volume': ohlcv.get('volume', [])
-                    }, index=pd.to_datetime(timestamps, unit='s'))
+                df = pd.DataFrame({
+                    'Open': ohlcv.get('open', []),
+                    'High': ohlcv.get('high', []),
+                    'Low': ohlcv.get('low', []),
+                    'Close': ohlcv.get('close', []),
+                    'Adj Close': adj_close,
+                    'Volume': ohlcv.get('volume', [])
+                }, index=pd.to_datetime(timestamps, unit='s'))
 
-                    if not df.empty:
-                        return df
+                if not df.empty:
+                    return df
     except Exception as e:
-        print(f"[DEBUG] Yahoo API failed for {tsx_symbol}: {e}")
-
-    # Method 3: yfinance library (backup)
-    try:
-        df = yf.download(tsx_symbol, period=f"{days}d", progress=False, timeout=10, session=session)
-        if df is not None and not df.empty:
-            return df
-    except Exception as e:
-        print(f"[DEBUG] yfinance failed for {tsx_symbol}: {e}")
-
-    # Method 4: Alpha Vantage (last resort - only 25/day)
-    if ALPHA_VANTAGE_API_KEY:
-        try:
-            av_symbol = f"{symbol}.TRT"
-            url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={av_symbol}&outputsize=compact&apikey={ALPHA_VANTAGE_API_KEY}"
-
-            response = session.get(url, timeout=15)
-            if response.status_code == 200:
-                data = response.json()
-                time_series = data.get('Time Series (Daily)', {})
-
-                if time_series:
-                    rows = []
-                    for date_str, values in time_series.items():
-                        rows.append({
-                            'Date': pd.to_datetime(date_str),
-                            'Open': float(values['1. open']),
-                            'High': float(values['2. high']),
-                            'Low': float(values['3. low']),
-                            'Close': float(values['4. close']),
-                            'Volume': int(values['5. volume'])
-                        })
-
-                    df = pd.DataFrame(rows)
-                    df.set_index('Date', inplace=True)
-                    df.sort_index(inplace=True)
-                    df = df.tail(days)
-
-                    if not df.empty:
-                        return df
-        except Exception as e:
-            print(f"[DEBUG] Alpha Vantage failed for {symbol}: {e}")
+        print(f"[DEBUG] Method 3 failed for {tsx_symbol}: {e}")
 
     print(f"[DEBUG] All methods failed for {tsx_symbol}")
     return None
