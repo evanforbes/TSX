@@ -14,7 +14,7 @@ TWELVE_DATA_API_KEY = os.environ.get('TWELVE_DATA_API_KEY', '')
 #   "full"    - Scan entire TSX market (~250+ stocks)
 #   "default" - Scan default list of ~70 major stocks
 #   "custom"  - Use CUSTOM_SYMBOLS list below
-SCAN_MODE = "default"
+SCAN_MODE = os.environ.get('SCAN_MODE', 'full')
 
 # Custom symbols list (used when SCAN_MODE = "custom")
 # Add symbols without .TO suffix
