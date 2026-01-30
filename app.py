@@ -180,12 +180,16 @@ def categorize_results(results):
         elif tier.get('tier_sell') == 'SILVER':
             silver_sells.append(r)
         else:
-            # Categorize regular signals
-            for indicator, signal, desc in r['signals']:
-                if signal in ('BUY', 'STRONG_BUY'):
-                    regular_buys.append({**r, 'highlight_signal': (indicator, desc)})
-                elif signal == 'SELL':
-                    regular_sells.append({**r, 'highlight_signal': (indicator, desc)})
+            # Categorize regular signals (only add stock once)
+            has_buy = any(s[1] in ('BUY', 'STRONG_BUY') for s in r['signals'])
+            has_sell = any(s[1] == 'SELL' for s in r['signals'])
+            buy_signals = [(s[0], s[2]) for s in r['signals'] if s[1] in ('BUY', 'STRONG_BUY')]
+            sell_signals = [(s[0], s[2]) for s in r['signals'] if s[1] == 'SELL']
+
+            if has_buy:
+                regular_buys.append({**r, 'highlight_signal': buy_signals[0]})
+            if has_sell:
+                regular_sells.append({**r, 'highlight_signal': sell_signals[0]})
 
     return {
         'gold_buys': gold_buys,
