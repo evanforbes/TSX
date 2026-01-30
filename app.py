@@ -170,25 +170,41 @@ def categorize_results(results):
 
     for r in results:
         tier = r.get('tier', {})
+        categorized_buy = False
+        categorized_sell = False
 
-        if tier.get('tier_buy') == 'GOLD':
+        # Check buy tiers
+        if tier.get('tier_buy') == 'DIAMOND':
+            gold_buys.append(r)  # Diamond goes to gold section
+            categorized_buy = True
+        elif tier.get('tier_buy') == 'GOLD':
             gold_buys.append(r)
-        elif tier.get('tier_sell') == 'GOLD':
-            gold_sells.append(r)
+            categorized_buy = True
         elif tier.get('tier_buy') == 'SILVER':
             silver_buys.append(r)
+            categorized_buy = True
+
+        # Check sell tiers (independent from buy check)
+        if tier.get('tier_sell') == 'DIAMOND':
+            gold_sells.append(r)  # Diamond goes to gold section
+            categorized_sell = True
+        elif tier.get('tier_sell') == 'GOLD':
+            gold_sells.append(r)
+            categorized_sell = True
         elif tier.get('tier_sell') == 'SILVER':
             silver_sells.append(r)
-        else:
-            # Categorize regular signals (only add stock once)
+            categorized_sell = True
+
+        # Regular signals (only if not already categorized in a tier)
+        if not categorized_buy or not categorized_sell:
             has_buy = any(s[1] in ('BUY', 'STRONG_BUY') for s in r['signals'])
             has_sell = any(s[1] == 'SELL' for s in r['signals'])
             buy_signals = [(s[0], s[2]) for s in r['signals'] if s[1] in ('BUY', 'STRONG_BUY')]
             sell_signals = [(s[0], s[2]) for s in r['signals'] if s[1] == 'SELL']
 
-            if has_buy:
+            if not categorized_buy and has_buy:
                 regular_buys.append({**r, 'highlight_signal': buy_signals[0]})
-            if has_sell:
+            if not categorized_sell and has_sell:
                 regular_sells.append({**r, 'highlight_signal': sell_signals[0]})
 
     return {
