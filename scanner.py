@@ -89,17 +89,11 @@ def fetch_stock_data(symbol: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Data
         except Exception as e:
             print(f"[DEBUG] Twelve Data failed for {symbol}: {e}")
 
-    # Method 2: yf.download (fallback for local)
+    # Method 2: yf.Ticker.history (fallback for local - thread-safe, flat columns)
     try:
-        df = yf.download(
-            tsx_symbol,
-            period=f"{days}d",
-            progress=False,
-            timeout=15
-        )
+        ticker = yf.Ticker(tsx_symbol)
+        df = ticker.history(period=f"{days}d")
         if df is not None and not df.empty:
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
             return df
     except Exception as e:
         print(f"[DEBUG] yfinance failed for {tsx_symbol}: {e}")
